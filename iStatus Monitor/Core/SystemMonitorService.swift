@@ -10,6 +10,7 @@ actor SystemMonitorService {
     private let dataStore: DataStore
     private let alertEngine: AlertEngine
     private let batteryAlertService: BatteryAlertService
+    private let historyStore: HistoryStore?
 
     private var loopTask: Task<Void, Never>?
 
@@ -22,7 +23,8 @@ actor SystemMonitorService {
         thermalMonitor: ThermalMonitor = ThermalMonitor(),
         dataStore: DataStore = DataStore(),
         alertEngine: AlertEngine = AlertEngine(),
-        batteryAlertService: BatteryAlertService = BatteryAlertService()
+        batteryAlertService: BatteryAlertService = BatteryAlertService(),
+        historyStore: HistoryStore? = nil
     ) {
         self.cpuMonitor = cpuMonitor
         self.memoryMonitor = memoryMonitor
@@ -33,6 +35,7 @@ actor SystemMonitorService {
         self.dataStore = dataStore
         self.alertEngine = alertEngine
         self.batteryAlertService = batteryAlertService
+        self.historyStore = historyStore
     }
 
     func start(appState: AppState, interval: Duration = .seconds(1)) {
@@ -64,6 +67,7 @@ actor SystemMonitorService {
                 }
 
                 await dataStore.persist(snapshot)
+                await historyStore?.ingest(snapshot)
                 await alertEngine.evaluate(snapshot)
                 await batteryAlertService.evaluate(snapshot.batterySnapshot)
 

@@ -1,8 +1,10 @@
+import SwiftData
 import SwiftUI
 
 struct ContentView: View {
     @Bindable var appState: AppState
     @Bindable var alertsStore: AlertsStore
+    @Bindable var historyViewModel: HistoryViewModel
 
     var body: some View {
         TabView {
@@ -16,9 +18,15 @@ struct ContentView: View {
                     Label("Alerts", systemImage: "bell.badge")
                 }
                 .badge(alertsStore.badgeCountLastHour)
+
+            HistoryView(viewModel: historyViewModel)
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
         }
         .onAppear {
             alertsStore.refresh()
+            historyViewModel.reload()
         }
     }
 
@@ -86,5 +94,9 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(appState: AppState(), alertsStore: AlertsStore(engine: AlertEngine()))
+    ContentView(
+        appState: AppState(),
+        alertsStore: AlertsStore(engine: AlertEngine()),
+        historyViewModel: HistoryViewModel(historyStore: HistoryStore(container: try! ModelContainer(for: MetricRecord.self)))
+    )
 }
