@@ -15,6 +15,7 @@ final class AppState {
     var networkSnapshot: NetworkSnapshot?
     var gpu: GPUMetrics = .empty
     var gpuSnapshot: GPUSnapshot?
+    var thermalSnapshot: ThermalSnapshot?
     var lastUpdated: Date?
     var isMonitoring = false
 
@@ -28,6 +29,7 @@ final class AppState {
         networkSnapshot = snapshot.networkSnapshot
         gpu = snapshot.gpu
         gpuSnapshot = snapshot.gpuSnapshot
+        thermalSnapshot = snapshot.thermalSnapshot
         lastUpdated = snapshot.timestamp
     }
 

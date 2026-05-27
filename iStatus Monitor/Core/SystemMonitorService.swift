@@ -6,6 +6,7 @@ actor SystemMonitorService {
     private let batteryMonitor: BatteryMonitor
     private let networkMonitor: NetworkMonitor
     private let gpuMonitor: GPUMonitor
+    private let thermalMonitor: ThermalMonitor
     private let dataStore: DataStore
     private let alertEngine: AlertEngine
     private let batteryAlertService: BatteryAlertService
@@ -18,6 +19,7 @@ actor SystemMonitorService {
         batteryMonitor: BatteryMonitor = BatteryMonitor(),
         networkMonitor: NetworkMonitor = NetworkMonitor(),
         gpuMonitor: GPUMonitor = GPUMonitor(),
+        thermalMonitor: ThermalMonitor = ThermalMonitor(),
         dataStore: DataStore = DataStore(),
         alertEngine: AlertEngine = AlertEngine(),
         batteryAlertService: BatteryAlertService = BatteryAlertService()
@@ -27,6 +29,7 @@ actor SystemMonitorService {
         self.batteryMonitor = batteryMonitor
         self.networkMonitor = networkMonitor
         self.gpuMonitor = gpuMonitor
+        self.thermalMonitor = thermalMonitor
         self.dataStore = dataStore
         self.alertEngine = alertEngine
         self.batteryAlertService = batteryAlertService
@@ -76,19 +79,21 @@ actor SystemMonitorService {
         async let batterySnapshot = batteryMonitor.latestSnapshot()
         async let networkSnapshot = networkMonitor.latestSnapshot()
         async let gpuSnapshot = gpuMonitor.latestSnapshot()
+        async let thermalSnapshot = thermalMonitor.latestSnapshot()
 
         let resolvedCPUSnapshot = await cpuSnapshot
         let resolvedMemorySnapshot = await memorySnapshot
         let resolvedBatterySnapshot = await batterySnapshot
         let resolvedNetworkSnapshot = await networkSnapshot
         let resolvedGPUSnapshot = await gpuSnapshot
+        let resolvedThermalSnapshot = await thermalSnapshot
 
         let cpu: CPUMetrics
         if let resolvedCPUSnapshot {
             cpu = CPUMetrics(
                 usagePercent: Double(resolvedCPUSnapshot.overallLoad * 100),
                 coreCount: resolvedCPUSnapshot.perCoreUsage.count,
-                temperatureCelsius: nil
+                temperatureCelsius: resolvedThermalSnapshot?.sensors.first(where: { $0.zone == .cpu })?.celsius
             )
         } else {
             cpu = .empty
@@ -125,7 +130,8 @@ actor SystemMonitorService {
         let gpu: GPUMetrics
         if let resolvedGPUSnapshot, !resolvedGPUSnapshot.gpus.isEmpty {
             let avg = resolvedGPUSnapshot.gpus.map(\.utilizationPercent).reduce(0, +) / Double(resolvedGPUSnapshot.gpus.count)
-            let temp = resolvedGPUSnapshot.gpus.compactMap(\.temperatureCelsius).first
+            let temp = resolvedThermalSnapshot?.sensors.first(where: { $0.zone == .gpu })?.celsius
+                ?? resolvedGPUSnapshot.gpus.compactMap(\.temperatureCelsius).first
             gpu = GPUMetrics(usagePercent: avg, temperatureCelsius: temp)
         } else {
             gpu = .empty
@@ -142,7 +148,8 @@ actor SystemMonitorService {
             network: network,
             networkSnapshot: resolvedNetworkSnapshot,
             gpu: gpu,
-            gpuSnapshot: resolvedGPUSnapshot
+            gpuSnapshot: resolvedGPUSnapshot,
+            thermalSnapshot: resolvedThermalSnapshot
         )
     }
 }

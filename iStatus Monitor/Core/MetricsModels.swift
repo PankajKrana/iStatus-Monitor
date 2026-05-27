@@ -180,6 +180,72 @@ struct GPUSnapshot: Codable, Sendable, Equatable {
     let displays: [DisplayInfo]
 }
 
+enum ThermalZone: String, Codable, Sendable, CaseIterable {
+    case cpu
+    case gpu
+    case battery
+    case heatsink
+    case ambient
+}
+
+struct FanReading: Codable, Sendable, Equatable, Identifiable {
+    let index: Int
+    let rpm: Double
+    let minRPM: Double
+    let maxRPM: Double
+    let percentOfMax: Double
+
+    var id: Int { index }
+}
+
+struct ThermalSensor: Codable, Sendable, Equatable, Identifiable {
+    let key: String
+    let name: String
+    let celsius: Double
+    let fahrenheit: Double
+    let zone: ThermalZone
+
+    var id: String { key }
+}
+
+struct ThermalSnapshot: Sendable, Equatable, Codable {
+    let timestamp: Date
+    let fans: [FanReading]
+    let sensors: [ThermalSensor]
+    let thermalState: ProcessInfo.ThermalState
+
+    enum CodingKeys: String, CodingKey {
+        case timestamp
+        case fans
+        case sensors
+        case thermalStateRaw
+    }
+
+    init(timestamp: Date, fans: [FanReading], sensors: [ThermalSensor], thermalState: ProcessInfo.ThermalState) {
+        self.timestamp = timestamp
+        self.fans = fans
+        self.sensors = sensors
+        self.thermalState = thermalState
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        fans = try container.decode([FanReading].self, forKey: .fans)
+        sensors = try container.decode([ThermalSensor].self, forKey: .sensors)
+        let raw = try container.decode(Int.self, forKey: .thermalStateRaw)
+        thermalState = ProcessInfo.ThermalState(rawValue: raw) ?? .nominal
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(timestamp, forKey: .timestamp)
+        try container.encode(fans, forKey: .fans)
+        try container.encode(sensors, forKey: .sensors)
+        try container.encode(thermalState.rawValue, forKey: .thermalStateRaw)
+    }
+}
+
 struct CPUMetrics: Codable, Sendable {
     var usagePercent: Double
     var coreCount: Int
@@ -235,4 +301,5 @@ struct SystemSnapshot: Codable, Sendable {
     var networkSnapshot: NetworkSnapshot?
     var gpu: GPUMetrics
     var gpuSnapshot: GPUSnapshot?
+    var thermalSnapshot: ThermalSnapshot?
 }

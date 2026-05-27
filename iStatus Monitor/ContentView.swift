@@ -20,6 +20,10 @@ struct ContentView: View {
                     UsageBarView(value: appState.ram.usedPercent, tint: AppTheme.ramColor)
                 }
 
+                if let thermalSnapshot = appState.thermalSnapshot {
+                    ThermalView(snapshot: thermalSnapshot)
+                }
+
                 if let batterySnapshot = appState.batterySnapshot {
                     BatteryView(snapshot: batterySnapshot)
                 } else {
@@ -54,7 +58,7 @@ struct ContentView: View {
             }
             .padding(AppTheme.panelPadding)
         }
-        .frame(minWidth: 680, minHeight: 860)
+        .frame(minWidth: 680, minHeight: 920)
     }
 
     private func formatBytes(_ bytes: UInt64) -> String {
