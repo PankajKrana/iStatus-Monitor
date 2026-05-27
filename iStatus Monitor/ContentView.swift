@@ -2,8 +2,27 @@ import SwiftUI
 
 struct ContentView: View {
     @Bindable var appState: AppState
+    @Bindable var alertsStore: AlertsStore
 
     var body: some View {
+        TabView {
+            dashboardTab
+                .tabItem {
+                    Label("Dashboard", systemImage: "gauge.with.dots.needle.50percent")
+                }
+
+            AlertsView(alertsStore: alertsStore)
+                .tabItem {
+                    Label("Alerts", systemImage: "bell.badge")
+                }
+                .badge(alertsStore.badgeCountLastHour)
+        }
+        .onAppear {
+            alertsStore.refresh()
+        }
+    }
+
+    private var dashboardTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if let cpuSnapshot = appState.cpuSnapshot {
@@ -67,5 +86,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(appState: AppState())
+    ContentView(appState: AppState(), alertsStore: AlertsStore(engine: AlertEngine()))
 }

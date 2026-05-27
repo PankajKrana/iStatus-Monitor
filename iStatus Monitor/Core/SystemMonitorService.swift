@@ -40,7 +40,7 @@ actor SystemMonitorService {
 
         loopTask = Task {
             await MainActor.run { appState.isMonitoring = true }
-            await alertEngine.requestAuthorization()
+            await alertEngine.requestAuthorizationIfNeeded()
 
             while !Task.isCancelled {
                 let paused = await MainActor.run { appState.isMonitoringPaused }
