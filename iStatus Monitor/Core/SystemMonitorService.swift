@@ -43,6 +43,16 @@ actor SystemMonitorService {
             await alertEngine.requestAuthorization()
 
             while !Task.isCancelled {
+                let paused = await MainActor.run { appState.isMonitoringPaused }
+                if paused {
+                    do {
+                        try await Task.sleep(for: interval)
+                    } catch {
+                        break
+                    }
+                    continue
+                }
+
                 let snapshot = await sampleAllMetrics()
                 let cpuHistory = await cpuMonitor.history
 

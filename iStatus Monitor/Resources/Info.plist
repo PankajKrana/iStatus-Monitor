@@ -21,6 +21,8 @@
 
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
 
     <key>NSLocalNetworkUsageDescription</key>
     <string>iStatus Monitor inspects local network interfaces to report bandwidth and interface health.</string>

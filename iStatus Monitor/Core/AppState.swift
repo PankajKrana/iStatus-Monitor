@@ -18,6 +18,7 @@ final class AppState {
     var thermalSnapshot: ThermalSnapshot?
     var lastUpdated: Date?
     var isMonitoring = false
+    var isMonitoringPaused = false
 
     func apply(_ snapshot: SystemSnapshot) {
         cpu = snapshot.cpu
