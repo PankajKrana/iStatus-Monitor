@@ -8,6 +8,7 @@ actor SystemMonitorService {
     private let gpuMonitor: GPUMonitor
     private let dataStore: DataStore
     private let alertEngine: AlertEngine
+    private let batteryAlertService: BatteryAlertService
 
     private var loopTask: Task<Void, Never>?
 
@@ -18,7 +19,8 @@ actor SystemMonitorService {
         networkMonitor: NetworkMonitor = NetworkMonitor(),
         gpuMonitor: GPUMonitor = GPUMonitor(),
         dataStore: DataStore = DataStore(),
-        alertEngine: AlertEngine = AlertEngine()
+        alertEngine: AlertEngine = AlertEngine(),
+        batteryAlertService: BatteryAlertService = BatteryAlertService()
     ) {
         self.cpuMonitor = cpuMonitor
         self.memoryMonitor = memoryMonitor
@@ -27,6 +29,7 @@ actor SystemMonitorService {
         self.gpuMonitor = gpuMonitor
         self.dataStore = dataStore
         self.alertEngine = alertEngine
+        self.batteryAlertService = batteryAlertService
     }
 
     func start(appState: AppState, interval: Duration = .seconds(1)) {
@@ -49,6 +52,7 @@ actor SystemMonitorService {
 
                 await dataStore.persist(snapshot)
                 await alertEngine.evaluate(snapshot)
+                await batteryAlertService.evaluate(snapshot.batterySnapshot)
 
                 do {
                     try await Task.sleep(for: interval)
@@ -69,12 +73,13 @@ actor SystemMonitorService {
     private func sampleAllMetrics() async -> SystemSnapshot {
         async let cpuSnapshot = cpuMonitor.latestSnapshot()
         async let memorySnapshot = memoryMonitor.latestSnapshot()
-        async let battery = batteryMonitor.read()
+        async let batterySnapshot = batteryMonitor.latestSnapshot()
         async let network = networkMonitor.read()
         async let gpu = gpuMonitor.read()
 
         let resolvedCPUSnapshot = await cpuSnapshot
         let resolvedMemorySnapshot = await memorySnapshot
+        let resolvedBatterySnapshot = await batterySnapshot
 
         let cpu: CPUMetrics
         if let resolvedCPUSnapshot {
@@ -94,6 +99,17 @@ actor SystemMonitorService {
             ram = .empty
         }
 
+        let battery: BatteryMetrics
+        if let resolvedBatterySnapshot {
+            battery = BatteryMetrics(
+                levelPercent: resolvedBatterySnapshot.chargePercent,
+                isCharging: resolvedBatterySnapshot.chargeState == .charging || resolvedBatterySnapshot.chargeState == .full,
+                cycleCount: resolvedBatterySnapshot.cycleCount
+            )
+        } else {
+            battery = .empty
+        }
+
         return await SystemSnapshot(
             timestamp: Date(),
             cpu: cpu,
@@ -101,6 +117,7 @@ actor SystemMonitorService {
             ram: ram,
             memorySnapshot: resolvedMemorySnapshot,
             battery: battery,
+            batterySnapshot: resolvedBatterySnapshot,
             network: network,
             gpu: gpu
         )

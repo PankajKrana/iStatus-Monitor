@@ -20,8 +20,14 @@ struct ContentView: View {
                     UsageBarView(value: appState.ram.usedPercent, tint: AppTheme.ramColor)
                 }
 
-                MetricRowView(title: "Battery", value: String(format: "%.0f%%", appState.battery.levelPercent), tint: AppTheme.batteryColor)
-                UsageBarView(value: appState.battery.levelPercent, tint: AppTheme.batteryColor)
+                if let batterySnapshot = appState.batterySnapshot {
+                    BatteryView(snapshot: batterySnapshot)
+                } else {
+                    Text("Battery not available on this Mac")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 6)
+                }
 
                 MetricRowView(
                     title: "Network",
@@ -40,7 +46,7 @@ struct ContentView: View {
             }
             .padding(AppTheme.panelPadding)
         }
-        .frame(minWidth: 560, minHeight: 620)
+        .frame(minWidth: 560, minHeight: 700)
     }
 
     private func formatBytes(_ bytes: UInt64) -> String {

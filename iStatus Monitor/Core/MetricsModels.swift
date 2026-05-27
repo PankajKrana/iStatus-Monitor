@@ -59,6 +59,55 @@ struct MemorySnapshot: Codable, Sendable, Equatable {
     }
 }
 
+enum BatteryChargeState: String, Codable, Sendable {
+    case charging
+    case discharging
+    case full
+    case ac
+    case unknown
+}
+
+struct BatteryHistoryPoint: Codable, Sendable, Equatable, Identifiable {
+    let timestamp: Date
+    let cycleCount: Int
+    let healthPercent: Double
+
+    var id: Date { timestamp }
+}
+
+struct BatteryChargePoint: Codable, Sendable, Equatable, Identifiable {
+    let timestamp: Date
+    let chargePercent: Double
+
+    var id: Date { timestamp }
+}
+
+struct BatterySnapshot: Codable, Sendable, Equatable {
+    let timestamp: Date
+    let currentCapacitymAh: Int
+    let designCapacitymAh: Int
+    let healthPercent: Double
+    let cycleCount: Int
+    let chargeState: BatteryChargeState
+    let chargePercent: Double
+    let timeToEmptyMinutes: Int?
+    let timeToFullMinutes: Int?
+    let voltageMillivolts: Int
+    let amperageMilliamps: Int
+    let watts: Double
+    let temperatureCelsius: Double
+    let temperatureFahrenheit: Double
+    let serialNumber: String
+    let chargeHistory24h: [BatteryChargePoint]
+    let healthHistory: [BatteryHistoryPoint]
+
+    var currentCapacityString: String { "\(currentCapacitymAh) mAh" }
+    var designCapacityString: String { "\(designCapacitymAh) mAh" }
+    var wattsString: String { String(format: "%.2f W", watts) }
+    var temperatureCString: String { String(format: "%.1f °C", temperatureCelsius) }
+    var temperatureFString: String { String(format: "%.1f °F", temperatureFahrenheit) }
+}
+
 struct CPUMetrics: Codable, Sendable {
     var usagePercent: Double
     var coreCount: Int
@@ -109,6 +158,7 @@ struct SystemSnapshot: Codable, Sendable {
     var ram: RAMMetrics
     var memorySnapshot: MemorySnapshot?
     var battery: BatteryMetrics
+    var batterySnapshot: BatterySnapshot?
     var network: NetworkMetrics
     var gpu: GPUMetrics
 }

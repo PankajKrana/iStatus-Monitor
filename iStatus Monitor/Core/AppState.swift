@@ -10,6 +10,7 @@ final class AppState {
     var ram: RAMMetrics = .empty
     var memorySnapshot: MemorySnapshot?
     var battery: BatteryMetrics = .empty
+    var batterySnapshot: BatterySnapshot?
     var network: NetworkMetrics = .empty
     var gpu: GPUMetrics = .empty
     var lastUpdated: Date?
@@ -20,6 +21,7 @@ final class AppState {
         ram = snapshot.ram
         memorySnapshot = snapshot.memorySnapshot
         battery = snapshot.battery
+        batterySnapshot = snapshot.batterySnapshot
         network = snapshot.network
         gpu = snapshot.gpu
         lastUpdated = snapshot.timestamp
