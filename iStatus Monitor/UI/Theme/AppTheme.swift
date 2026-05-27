@@ -10,6 +10,9 @@ enum AppTheme {
     static let networkColor: Color = .orange
     static let gpuColor: Color = .purple
 
+    static let networkDownloadColor: Color = Color(red: 0.16, green: 0.61, blue: 0.98)
+    static let networkUploadColor: Color = Color(red: 0.99, green: 0.53, blue: 0.22)
+
     static let memoryUsedColor: Color = Color(red: 0.20, green: 0.58, blue: 0.94)
     static let memoryAppColor: Color = Color(red: 0.20, green: 0.58, blue: 0.94)
     static let memoryWiredColor: Color = Color(red: 0.56, green: 0.34, blue: 0.90)

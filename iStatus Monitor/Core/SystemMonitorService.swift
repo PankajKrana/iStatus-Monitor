@@ -74,12 +74,13 @@ actor SystemMonitorService {
         async let cpuSnapshot = cpuMonitor.latestSnapshot()
         async let memorySnapshot = memoryMonitor.latestSnapshot()
         async let batterySnapshot = batteryMonitor.latestSnapshot()
-        async let network = networkMonitor.read()
+        async let networkSnapshot = networkMonitor.latestSnapshot()
         async let gpu = gpuMonitor.read()
 
         let resolvedCPUSnapshot = await cpuSnapshot
         let resolvedMemorySnapshot = await memorySnapshot
         let resolvedBatterySnapshot = await batterySnapshot
+        let resolvedNetworkSnapshot = await networkSnapshot
 
         let cpu: CPUMetrics
         if let resolvedCPUSnapshot {
@@ -110,6 +111,16 @@ actor SystemMonitorService {
             battery = .empty
         }
 
+        let network: NetworkMetrics
+        if let resolvedNetworkSnapshot {
+            let primary = resolvedNetworkSnapshot.interfaces.first(where: { $0.isPrimary }) ?? resolvedNetworkSnapshot.interfaces.first
+            let inBytes = resolvedNetworkSnapshot.interfaces.reduce(UInt64(0)) { $0 + $1.downloadBytesPerSecond }
+            let outBytes = resolvedNetworkSnapshot.interfaces.reduce(UInt64(0)) { $0 + $1.uploadBytesPerSecond }
+            network = NetworkMetrics(bytesInPerSecond: inBytes, bytesOutPerSecond: outBytes, primaryInterface: primary?.name ?? "")
+        } else {
+            network = .empty
+        }
+
         return await SystemSnapshot(
             timestamp: Date(),
             cpu: cpu,
@@ -119,6 +130,7 @@ actor SystemMonitorService {
             battery: battery,
             batterySnapshot: resolvedBatterySnapshot,
             network: network,
+            networkSnapshot: resolvedNetworkSnapshot,
             gpu: gpu
         )
     }

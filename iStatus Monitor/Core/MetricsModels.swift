@@ -108,6 +108,47 @@ struct BatterySnapshot: Codable, Sendable, Equatable {
     var temperatureFString: String { String(format: "%.1f °F", temperatureFahrenheit) }
 }
 
+enum NetworkInterfaceType: String, Codable, Sendable {
+    case wifi
+    case ethernet
+    case vpn
+    case cellular
+    case other
+}
+
+struct InterfaceStats: Codable, Sendable, Equatable, Identifiable {
+    let name: String
+    let displayName: String
+    let type: NetworkInterfaceType
+    let downloadBytesPerSecond: UInt64
+    let uploadBytesPerSecond: UInt64
+    let totalBytesReceived: UInt64
+    let totalBytesSent: UInt64
+    let ipv4Address: String?
+    let ipv6Address: String?
+    let isConnected: Bool
+    let isPrimary: Bool
+
+    var id: String { name }
+}
+
+struct ThroughputPoint: Codable, Sendable, Equatable, Identifiable {
+    let timestamp: Date
+    let downloadBytesPerSecond: UInt64
+    let uploadBytesPerSecond: UInt64
+
+    var id: Date { timestamp }
+}
+
+struct NetworkSnapshot: Codable, Sendable, Equatable {
+    let timestamp: Date
+    let interfaces: [InterfaceStats]
+    let connectivitySatisfied: Bool
+    let totalDownloadSinceLaunch: UInt64
+    let totalUploadSinceLaunch: UInt64
+    let history60s: [ThroughputPoint]
+}
+
 struct CPUMetrics: Codable, Sendable {
     var usagePercent: Double
     var coreCount: Int
@@ -160,5 +201,6 @@ struct SystemSnapshot: Codable, Sendable {
     var battery: BatteryMetrics
     var batterySnapshot: BatterySnapshot?
     var network: NetworkMetrics
+    var networkSnapshot: NetworkSnapshot?
     var gpu: GPUMetrics
 }

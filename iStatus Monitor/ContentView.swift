@@ -29,11 +29,15 @@ struct ContentView: View {
                         .padding(.vertical, 6)
                 }
 
-                MetricRowView(
-                    title: "Network",
-                    value: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s ↑ \(formatBytes(appState.network.bytesOutPerSecond))/s",
-                    tint: AppTheme.networkColor
-                )
+                if let networkSnapshot = appState.networkSnapshot {
+                    NetworkView(snapshot: networkSnapshot)
+                } else {
+                    MetricRowView(
+                        title: "Network",
+                        value: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s ↑ \(formatBytes(appState.network.bytesOutPerSecond))/s",
+                        tint: AppTheme.networkColor
+                    )
+                }
 
                 MetricRowView(title: "GPU", value: String(format: "%.0f%%", appState.gpu.usagePercent), tint: AppTheme.gpuColor)
                 UsageBarView(value: appState.gpu.usagePercent, tint: AppTheme.gpuColor)
@@ -46,7 +50,7 @@ struct ContentView: View {
             }
             .padding(AppTheme.panelPadding)
         }
-        .frame(minWidth: 560, minHeight: 700)
+        .frame(minWidth: 620, minHeight: 760)
     }
 
     private func formatBytes(_ bytes: UInt64) -> String {
