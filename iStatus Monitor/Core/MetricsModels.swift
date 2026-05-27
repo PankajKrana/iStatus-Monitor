@@ -149,6 +149,37 @@ struct NetworkSnapshot: Codable, Sendable, Equatable {
     let history60s: [ThroughputPoint]
 }
 
+struct GPUStats: Codable, Sendable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let vendor: String
+    let utilizationPercent: Double
+    let vramTotalMB: Int?
+    let vramUsedMB: Int?
+    let temperatureCelsius: Double?
+    let metalDeviceName: String?
+    let isLowPower: Bool?
+    let isRemovable: Bool?
+    let recommendedMaxWorkingSetSize: UInt64?
+    let isIntegrated: Bool
+}
+
+struct DisplayInfo: Codable, Sendable, Equatable, Identifiable {
+    let id: UInt32
+    let width: Int
+    let height: Int
+    let refreshRate: Double
+    let isMain: Bool
+    let isRetina: Bool
+    let colorSpaceName: String
+}
+
+struct GPUSnapshot: Codable, Sendable, Equatable {
+    let timestamp: Date
+    let gpus: [GPUStats]
+    let displays: [DisplayInfo]
+}
+
 struct CPUMetrics: Codable, Sendable {
     var usagePercent: Double
     var coreCount: Int
@@ -203,4 +234,5 @@ struct SystemSnapshot: Codable, Sendable {
     var network: NetworkMetrics
     var networkSnapshot: NetworkSnapshot?
     var gpu: GPUMetrics
+    var gpuSnapshot: GPUSnapshot?
 }

@@ -39,8 +39,12 @@ struct ContentView: View {
                     )
                 }
 
-                MetricRowView(title: "GPU", value: String(format: "%.0f%%", appState.gpu.usagePercent), tint: AppTheme.gpuColor)
-                UsageBarView(value: appState.gpu.usagePercent, tint: AppTheme.gpuColor)
+                if let gpuSnapshot = appState.gpuSnapshot {
+                    GPUView(snapshot: gpuSnapshot)
+                } else {
+                    MetricRowView(title: "GPU", value: String(format: "%.0f%%", appState.gpu.usagePercent), tint: AppTheme.gpuColor)
+                    UsageBarView(value: appState.gpu.usagePercent, tint: AppTheme.gpuColor)
+                }
 
                 if let lastUpdated = appState.lastUpdated {
                     Text("Updated: \(lastUpdated.formatted(date: .omitted, time: .standard))")
@@ -50,7 +54,7 @@ struct ContentView: View {
             }
             .padding(AppTheme.panelPadding)
         }
-        .frame(minWidth: 620, minHeight: 760)
+        .frame(minWidth: 680, minHeight: 860)
     }
 
     private func formatBytes(_ bytes: UInt64) -> String {

@@ -75,12 +75,13 @@ actor SystemMonitorService {
         async let memorySnapshot = memoryMonitor.latestSnapshot()
         async let batterySnapshot = batteryMonitor.latestSnapshot()
         async let networkSnapshot = networkMonitor.latestSnapshot()
-        async let gpu = gpuMonitor.read()
+        async let gpuSnapshot = gpuMonitor.latestSnapshot()
 
         let resolvedCPUSnapshot = await cpuSnapshot
         let resolvedMemorySnapshot = await memorySnapshot
         let resolvedBatterySnapshot = await batterySnapshot
         let resolvedNetworkSnapshot = await networkSnapshot
+        let resolvedGPUSnapshot = await gpuSnapshot
 
         let cpu: CPUMetrics
         if let resolvedCPUSnapshot {
@@ -121,6 +122,15 @@ actor SystemMonitorService {
             network = .empty
         }
 
+        let gpu: GPUMetrics
+        if let resolvedGPUSnapshot, !resolvedGPUSnapshot.gpus.isEmpty {
+            let avg = resolvedGPUSnapshot.gpus.map(\.utilizationPercent).reduce(0, +) / Double(resolvedGPUSnapshot.gpus.count)
+            let temp = resolvedGPUSnapshot.gpus.compactMap(\.temperatureCelsius).first
+            gpu = GPUMetrics(usagePercent: avg, temperatureCelsius: temp)
+        } else {
+            gpu = .empty
+        }
+
         return await SystemSnapshot(
             timestamp: Date(),
             cpu: cpu,
@@ -131,7 +141,8 @@ actor SystemMonitorService {
             batterySnapshot: resolvedBatterySnapshot,
             network: network,
             networkSnapshot: resolvedNetworkSnapshot,
-            gpu: gpu
+            gpu: gpu,
+            gpuSnapshot: resolvedGPUSnapshot
         )
     }
 }
