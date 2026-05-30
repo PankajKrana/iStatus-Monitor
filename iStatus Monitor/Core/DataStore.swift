@@ -16,7 +16,12 @@ actor DataStore {
             let data = try encoder.encode(snapshot)
             try appendLine(data)
         } catch {
-            // Best-effort persistence for diagnostics and trend history.
+            // Log error in debug builds to help troubleshoot persistence issues.
+            // This is best-effort: the app continues operating even if metrics
+            // aren't persisted to disk (they're still available in-memory).
+            #if DEBUG
+            print("⚠️  Metrics persistence error: \(error)")
+            #endif
         }
     }
 

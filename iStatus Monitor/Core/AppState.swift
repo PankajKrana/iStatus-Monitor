@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Darwin.POSIX
 
 @MainActor
 @Observable
@@ -37,5 +38,9 @@ final class AppState {
     func applyCPU(snapshot: CPUSnapshot, history: [CPUSnapshot]) {
         cpuSnapshot = snapshot
         cpuHistory = history
+    }
+
+    var systemUptime: TimeInterval? {
+        ProcessInfo.processInfo.systemUptime
     }
 }

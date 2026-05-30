@@ -245,7 +245,7 @@ struct MenuBarDashboardView: View {
     }
 }
 
-struct SettingsView: View {
+struct MenuBarSettingsView: View {
     @Bindable var settings: MenuBarSettings
 
     var body: some View {

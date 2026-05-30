@@ -21,8 +21,16 @@ struct iStatus_MonitorApp: App {
         do {
             container = try ModelContainer(for: schema, configurations: [configuration])
         } catch {
-            // Fallback in-memory container if persistent container cannot be opened.
-            container = try! ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)])
+            // Fallback to in-memory storage when persistent storage fails
+            do {
+                let inMemoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                container = try ModelContainer(for: schema, configurations: [inMemoryConfig])
+                #if DEBUG
+                print("⚠️  SwiftData persistent storage unavailable, using in-memory storage")
+                #endif
+            } catch {
+                fatalError("Failed to initialize SwiftData (persistent and in-memory): \(error)")
+            }
         }
 
         modelContainer = container
@@ -38,7 +46,7 @@ struct iStatus_MonitorApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(appState: appState, alertsStore: alertsStore, historyViewModel: historyViewModel)
+            MainNavigationShell(appState: appState, alertsStore: alertsStore, historyViewModel: historyViewModel)
                 .task {
                     await monitorService.start(appState: appState)
                 }
@@ -60,9 +68,20 @@ struct iStatus_MonitorApp: App {
                 }
         }
         .modelContainer(modelContainer)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1120, height: 760)
 
         Settings {
-            SettingsView(settings: menuBarSettings)
+            SettingsView()
+        }
+
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                SettingsLink {
+                    Text("Settings…")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
         }
     }
 }
