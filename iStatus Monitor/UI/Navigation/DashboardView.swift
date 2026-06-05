@@ -28,7 +28,7 @@ struct DashboardView: View {
                         sparkline: appState.cpuHistory.map { Double($0.overallLoad) * 100 },
                         status: cpuStatus,
                         miniStats: [
-                            ("Threads", String(appState.cpu.physicalCoreCount) + " cores"),
+                            ("Threads", String(appState.cpu.coreCount) + " cores"),
                             ("Freq", "3.2 GHz")
                         ]
                     ) {
@@ -39,7 +39,7 @@ struct DashboardView: View {
                     dashboardCard(
                         title: "GPU",
                         metric: String(format: "%.1f%%", appState.gpu.usagePercent),
-                        icon: "bolt.triangle",
+                        icon: "display",
                         tint: AppTheme.gpuColor,
                         sparkline: [appState.gpuSnapshot?.gpus.first?.utilizationPercent].compactMap { $0 },
                         status: gpuStatus,
@@ -89,16 +89,22 @@ struct DashboardView: View {
                         metric: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s",
                         icon: "network",
                         tint: AppTheme.networkDownloadColor,
-                        sparkline: appState.networkSnapshot?.history60s.map { Double($0.downloadBytesPerSecond) / 1024 } ?? [],
+                        sparkline: appState.networkSnapshot?.history60s.map {
+                            Double($0.downloadBytesPerSecond) / 1024
+                        } ?? [],
                         status: .normal,
                         miniStats: [
                             ("Upload", "↑ \(formatBytes(appState.network.bytesOutPerSecond))/s"),
-                            ("IP", appState.network.publicIP ?? "--")
+                            ("IP",
+                             appState.networkSnapshot?
+                                .interfaces
+                                .first(where: { $0.isPrimary })?
+                                .ipv4Address ?? "--")
                         ]
                     ) {
                         onNavigate(.network)
                     }
-
+                    
                     // Battery Card
                     dashboardCard(
                         title: "Battery",
@@ -124,10 +130,22 @@ struct DashboardView: View {
                         sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? [],
                         status: thermalStatus,
                         miniStats: [
-                            ("Fan", "-- RPM"),
-                            ("Status", thermalStatus == .critical ? "Hot" : "Normal")
-                        ]
-                    ) {
+                            (
+                                "Fan",
+                                appState.thermalSnapshot?
+                                    .fans
+                                    .first
+                                    .map { String(format: "%.0f RPM", $0.rpm) } ?? "--"
+                            ),
+                            (
+                                "Status",
+                                appState.thermalSnapshot?.thermalState == .critical
+                                    ? "Critical"
+                                    : appState.thermalSnapshot?.thermalState == .serious
+                                        ? "Serious"
+                                        : "Normal"
+                            )
+                        ]                    ) {
                         onNavigate(.thermal)
                     }
 
@@ -179,7 +197,16 @@ struct DashboardView: View {
                             .font(.headline)
                             .foregroundStyle(tint)
                         Spacer()
-                        StatusDot(status: status)
+                        let dotStatus: StatusDot.Status = {
+                            switch status {
+                            case .normal: return .good
+                            case .warning: return .warning
+                            case .critical: return .critical
+                            @unknown default:
+                                    return .warning
+                            }
+                        }()
+                        StatusDot(status: dotStatus)
                     }
 
                     Text(metric)
@@ -317,3 +344,4 @@ struct SystemInfo {
         )
     }
 }
+

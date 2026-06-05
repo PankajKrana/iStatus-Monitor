@@ -33,7 +33,7 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         case .cpu: "cpu"
         case .memory: "memorychip"
         case .network: "network"
-        case .gpu: "bolt.triangle"
+        case .gpu: "display"
         case .thermal: "thermometer.sun.fill"
         case .battery: "battery.100"
         case .alerts: "bell.badge"

@@ -128,7 +128,7 @@ struct SettingsView: View {
 
     private var aboutSettings: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("PulseKit")
+            Text("iStatus Monitor")
                 .font(.title2.weight(.semibold))
 
             LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")

@@ -23,7 +23,7 @@ struct GPUView: View {
                                 CircularGauge(
                                     value: gpu.utilizationPercent,
                                     color: AppTheme.gpuColor,
-                                    icon: "bolt.triangle",
+                                    icon: "display",
                                     title: "GPU Utilization",
                                     label: "\(Int(gpu.utilizationPercent))%",
                                     strokeWidth: 10

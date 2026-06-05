@@ -107,7 +107,7 @@ struct MainNavigationShell: View {
                 GPUView(snapshot: snapshot)
                     .padding(16)
             } else {
-                EmptySectionView(symbol: "bolt.triangle", title: "No GPU Data", message: "GPU metrics are currently unavailable.")
+                EmptySectionView(symbol: "display", title: "No GPU Data", message: "GPU metrics are currently unavailable.")
             }
         case .thermal:
             if let snapshot = appState.thermalSnapshot {
