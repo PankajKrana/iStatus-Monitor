@@ -48,90 +48,166 @@ struct BatteryView: View {
             return "Unknown"
         }
     }
+    
+    private var chargeStatus: StatusBadge.Status {
+        switch snapshot.chargeState {
+        case .charging: return .charging
+        case .discharging: return .discharging
+        case .full: return .full
+        case .ac: return .full
+        case .unknown: return .custom("Unknown", .gray)
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: batterySymbol)
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(AppTheme.batteryColor)
-                    .contentTransition(.symbolEffect(.replace))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Battery")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Hero Battery Ring
+                GlassCard(material: .thin, padding: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("Battery Status")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            StatusBadge(status: chargeStatus)
+                        }
+
+                        HStack(spacing: 20) {
+                            CircularGauge(
+                                value: snapshot.chargePercent,
+                                color: AppTheme.batteryColor,
+                                icon: "battery.50",
+                                title: "Charge Level",
+                                label: snapshot.chargeState.rawValue.capitalized,
+                                strokeWidth: 10
+                            )
+                            .frame(width: 140, height: 160)
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                MetricRowView(
+                                    title: "Charge",
+                                    value: String(format: "%.0f%%", snapshot.chargePercent),
+                                    tint: AppTheme.batteryColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Health",
+                                    value: String(format: "%.1f%%", snapshot.healthPercent),
+                                    tint: AppTheme.batteryColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Cycle Count",
+                                    value: "\(snapshot.cycleCount)",
+                                    tint: AppTheme.batteryColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Temperature",
+                                    value: String(format: "%.1f°C", snapshot.temperatureCelsius),
+                                    tint: AppTheme.batteryColor
+                                )
+                            }
+                            
+                            Spacer()
+                        }
+
+                        HStack(spacing: 8) {
+                            Text(timeRemainingText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("•")
+                                .foregroundStyle(.secondary)
+                            Text(snapshot.wattsString)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // Health Section
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Battery Health")
                         .font(.headline)
-                    Text(String(format: "%.0f%% • %@", snapshot.chargePercent, snapshot.chargeState.rawValue.capitalized))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
+
+                    GlassCard(material: .thin) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Health Status")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(String(format: "%.1f%%", snapshot.healthPercent))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.primary)
+                            }
+                            ProgressView(value: snapshot.healthPercent, total: 100)
+                                .tint(healthColor)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("Cycles Until 80%")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text("\(estimatedCyclesTo80) cycles")
+                                        .font(.caption2.monospacedDigit())
+                                        .foregroundStyle(.primary)
+                                }
+                                Text("Serial: \(snapshot.serialNumber)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        }
+                    }
                 }
-                Spacer()
-                Text(snapshot.wattsString)
-                    .font(.title3.monospacedDigit())
-            }
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Health")
-                    Spacer()
-                    Text(String(format: "%.1f%%", snapshot.healthPercent))
-                        .monospacedDigit()
+                // Charge History
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Charge History (24h)")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    GlassCard(material: .thin) {
+                        Chart(snapshot.chargeHistory24h) { point in
+                            LineMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Charge", point.chargePercent)
+                            )
+                            .foregroundStyle(AppTheme.batteryColor)
+                            .interpolationMethod(.catmullRom)
+                        }
+                        .frame(height: 120)
+                        .chartYAxis(.hidden)
+                    }
                 }
-                ProgressView(value: snapshot.healthPercent, total: 100)
-                    .tint(healthColor)
-            }
 
-            HStack(spacing: 14) {
-                Text("Cycle Count: \(snapshot.cycleCount)")
-                    .font(.subheadline.monospacedDigit())
-                Text("To 80%: \(estimatedCyclesTo80) cycles")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
+                // Health Degradation
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Health Degradation")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-            HStack(spacing: 14) {
-                Text(timeRemainingText)
-                Text(snapshot.temperatureCString)
-                Text(snapshot.temperatureFString)
-                Text("Serial: \(snapshot.serialNumber)")
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Charge (24h)")
-                    .font(.caption.weight(.semibold))
-
-                Chart(snapshot.chargeHistory24h) { point in
-                    LineMark(
-                        x: .value("Time", point.timestamp),
-                        y: .value("Charge", point.chargePercent)
-                    )
-                    .foregroundStyle(AppTheme.batteryColor)
-                    .interpolationMethod(.catmullRom)
+                    GlassCard(material: .thin) {
+                        Chart(snapshot.healthHistory.suffix(40)) { point in
+                            LineMark(
+                                x: .value("Cycle", point.cycleCount),
+                                y: .value("Health", point.healthPercent)
+                            )
+                            .foregroundStyle(healthColor)
+                            .interpolationMethod(.linear)
+                        }
+                        .frame(height: 120)
+                        .chartYAxis(.hidden)
+                    }
                 }
-                .frame(height: 62)
-                .chartYAxis(.hidden)
-                .chartXAxis(.hidden)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Health Degradation")
-                    .font(.caption.weight(.semibold))
-
-                Chart(snapshot.healthHistory.suffix(40)) { point in
-                    LineMark(
-                        x: .value("Cycle", point.cycleCount),
-                        y: .value("Health", point.healthPercent)
-                    )
-                    .foregroundStyle(healthColor)
-                    .interpolationMethod(.linear)
-                }
-                .frame(height: 62)
-                .chartYAxis(.hidden)
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: snapshot)
+        .animation(AppTheme.springAnimation, value: snapshot)
     }
 }
 

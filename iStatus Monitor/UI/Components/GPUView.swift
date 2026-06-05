@@ -5,93 +5,133 @@ struct GPUView: View {
     let snapshot: GPUSnapshot
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("GPU")
-                .font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(snapshot.gpus, id: \.id) { gpu in
+                    GlassCard(material: .thin, padding: 16) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(gpu.name)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text(gpu.vendor)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
 
-            ForEach(snapshot.gpus) { gpu in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(gpu.name)
-                                .font(.subheadline.weight(.semibold))
-                            Text(gpu.vendor)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        ring(utilization: gpu.utilizationPercent)
-                    }
+                            HStack(spacing: 20) {
+                                CircularGauge(
+                                    value: gpu.utilizationPercent,
+                                    color: AppTheme.gpuColor,
+                                    icon: "bolt.triangle",
+                                    title: "GPU Utilization",
+                                    label: "\(Int(gpu.utilizationPercent))%",
+                                    strokeWidth: 10
+                                )
+                                .frame(width: 140, height: 160)
 
-                    if let total = gpu.vramTotalMB {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("VRAM")
+                                VStack(alignment: .leading, spacing: 12) {
+                                    if let temp = gpu.temperatureCelsius {
+                                        MetricRowView(
+                                            title: "Temperature",
+                                            value: String(format: "%.0f°C", temp),
+                                            tint: AppTheme.gpuColor
+                                        )
+                                    }
+                                    
+                                    if let total = gpu.vramTotalMB {
+                                        MetricRowView(
+                                            title: "VRAM Total",
+                                            value: String(Int(total).toMemoryString()),
+                                            tint: AppTheme.gpuColor
+                                        )
+                                    }
+                                    
+                                    if let device = gpu.metalDeviceName {
+                                        MetricRowView(
+                                            title: "Device",
+                                            value: device,
+                                            tint: AppTheme.gpuColor
+                                        )
+                                    }
+                                    
+                                    if gpu.isIntegrated {
+                                        Text("Integrated GPU")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                
                                 Spacer()
-                                Text(vramLabel(totalMB: total, usedMB: gpu.vramUsedMB))
-                                    .monospacedDigit()
                             }
-                            ProgressView(value: vramRatio(totalMB: total, usedMB: gpu.vramUsedMB), total: 1)
-                                .tint(AppTheme.gpuColor)
-                        }
-                    } else if gpu.isIntegrated {
-                        Text("Integrated GPU (shared memory on Apple Silicon / iGPU architecture)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
 
-                    HStack(spacing: 12) {
-                        if let temp = gpu.temperatureCelsius {
-                            Text(String(format: "%.1f °C", temp))
-                        }
-                        if let device = gpu.metalDeviceName {
-                            Text(device)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                        if let maxSet = gpu.recommendedMaxWorkingSetSize, maxSet > 0 {
-                            Text("Max Set: \(Int(maxSet).toMemoryString())")
+                            if let total = gpu.vramTotalMB {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("VRAM Usage")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text(vramLabel(totalMB: total, usedMB: gpu.vramUsedMB))
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(.primary)
+                                    }
+                                    ProgressView(value: vramRatio(totalMB: total, usedMB: gpu.vramUsedMB), total: 1)
+                                        .tint(AppTheme.gpuColor)
+                                }
+                            }
                         }
                     }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
                 }
-                .padding(10)
-                .background(Color.gray.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
 
-            if !snapshot.displays.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Displays")
-                        .font(.subheadline.weight(.semibold))
+                if !snapshot.displays.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Displays")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
 
-                    ForEach(snapshot.displays) { display in
-                        HStack {
-                            Text("Display \(display.id)")
-                                .fontWeight(display.isMain ? .bold : .regular)
-                            Spacer()
-                            Text("\(display.width)×\(display.height)")
-                                .monospacedDigit()
-                            Text(refreshBadge(display.refreshRate))
-                            if display.isRetina {
-                                Text("Retina")
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.12))
-                                    .clipShape(Capsule())
+                        ForEach(snapshot.displays) { display in
+                            GlassCard(material: .thin) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Display \(display.id)")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.primary)
+                                        
+                                        HStack(spacing: 8) {
+                                            Text("\(display.width)×\(display.height)")
+                                                .font(.caption.monospacedDigit())
+                                                .foregroundStyle(.secondary)
+                                            
+                                            Text(refreshBadge(display.refreshRate))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            
+                                            if display.isRetina {
+                                                StatusBadge(status: .custom("Retina", .blue))
+                                            }
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text(display.colorSpaceName)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        
+                                        if display.isMain {
+                                            StatusDot(status: .good)
+                                        }
+                                    }
+                                }
                             }
                         }
-                        .font(.caption)
-
-                        Text(display.colorSpaceName)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: snapshot)
+        .animation(AppTheme.springAnimation, value: snapshot)
     }
 
     private func ring(utilization: Double) -> some View {

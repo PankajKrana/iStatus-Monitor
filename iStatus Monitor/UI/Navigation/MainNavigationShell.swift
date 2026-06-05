@@ -23,7 +23,7 @@ struct MainNavigationShell: View {
                         .keyboardShortcut(tab.keyboardShortcut)
                 }
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 210)
+            .navigationSplitViewColumnWidth(min: AppTheme.sidebarWidth, ideal: AppTheme.sidebarWidth)
             .listStyle(.sidebar)
         } detail: {
             detailContent
@@ -133,10 +133,10 @@ struct MainNavigationShell: View {
     private func exportMetricsData() -> URL {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let filename = "PulseKit_Metrics_\(formatter.string(from: Date())).txt"
+        let filename = "iStatus_Metrics_\(formatter.string(from: Date())).txt"
 
         let content = """
-        PulseKit Metrics Export
+        iStatus Monitor Metrics Export
         \(Date().formatted(date: .abbreviated, time: .standard))
 
         CPU Usage: \(String(format: "%.1f%%", appState.cpu.usagePercent))

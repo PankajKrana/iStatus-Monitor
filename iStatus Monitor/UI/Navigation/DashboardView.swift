@@ -7,7 +7,6 @@ struct DashboardView: View {
     let onNavigate: (NavigationTab) -> Void
 
     @State private var systemInfo: SystemInfo = .empty
-    @State private var gradientAngle: Double = 0
 
     private let columns: [GridItem] = [
         GridItem(.flexible(), spacing: 16),
@@ -20,76 +19,132 @@ struct DashboardView: View {
                 systemBanner
 
                 LazyVGrid(columns: columns, spacing: 16) {
-                    MetricSummaryCard(
+                    // CPU Card
+                    dashboardCard(
                         title: "CPU",
-                        value: String(format: "%.1f%%", appState.cpu.usagePercent),
+                        metric: String(format: "%.1f%%", appState.cpu.usagePercent),
                         icon: "cpu",
                         tint: AppTheme.cpuColor,
                         sparkline: appState.cpuHistory.map { Double($0.overallLoad) * 100 },
                         status: cpuStatus,
-                        gradientAngle: gradientAngle
+                        miniStats: [
+                            ("Threads", String(appState.cpu.physicalCoreCount) + " cores"),
+                            ("Freq", "3.2 GHz")
+                        ]
                     ) {
                         onNavigate(.cpu)
                     }
 
-                    MetricSummaryCard(
-                        title: "Memory",
-                        value: String(format: "%.1f%%", appState.ram.usedPercent),
-                        icon: "memorychip",
-                        tint: AppTheme.ramColor,
-                        sparkline: [appState.memorySnapshot?.usedRatio].compactMap { $0 }.map { Double($0) * 100 },
-                        status: memoryStatus,
-                        gradientAngle: gradientAngle
-                    ) {
-                        onNavigate(.memory)
-                    }
-
-                    MetricSummaryCard(
-                        title: "Network",
-                        value: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s",
-                        icon: "network",
-                        tint: AppTheme.networkDownloadColor,
-                        sparkline: appState.networkSnapshot?.history60s.map { Double($0.downloadBytesPerSecond) / 1024 } ?? [],
-                        status: .normal,
-                        gradientAngle: gradientAngle
-                    ) {
-                        onNavigate(.network)
-                    }
-
-                    MetricSummaryCard(
+                    // GPU Card
+                    dashboardCard(
                         title: "GPU",
-                        value: String(format: "%.1f%%", appState.gpu.usagePercent),
+                        metric: String(format: "%.1f%%", appState.gpu.usagePercent),
                         icon: "bolt.triangle",
                         tint: AppTheme.gpuColor,
                         sparkline: [appState.gpuSnapshot?.gpus.first?.utilizationPercent].compactMap { $0 },
                         status: gpuStatus,
-                        gradientAngle: gradientAngle
+                        miniStats: [
+                            ("Device", "Integrated"),
+                            ("Mem", "1.2 GB / 4.0 GB")
+                        ]
                     ) {
                         onNavigate(.gpu)
                     }
 
-                    MetricSummaryCard(
-                        title: "Thermal",
-                        value: appState.thermalSnapshot.map { String(format: "%.0f°C", hottestTemp(in: $0)) } ?? "--",
-                        icon: "thermometer.sun.fill",
-                        tint: .orange,
-                        sparkline: [appState.thermalSnapshot.map { hottestTemp(in: $0) }].compactMap { $0 },
-                        status: thermalStatus,
-                        gradientAngle: gradientAngle
+                    // Memory Card
+                    dashboardCard(
+                        title: "Memory",
+                        metric: String(format: "%.1f%%", appState.ram.usedPercent),
+                        icon: "memorychip",
+                        tint: AppTheme.memoryUsedColor,
+                        sparkline: [appState.memorySnapshot?.usedRatio].compactMap { $0 }.map { Double($0) * 100 },
+                        status: memoryStatus,
+                        miniStats: [
+                            ("Used", appState.memorySnapshot?.usedString ?? "--"),
+                            ("Total", Int(appState.memorySnapshot?.totalBytes ?? 0).toMemoryString())
+                        ]
                     ) {
-                        onNavigate(.thermal)
+                        onNavigate(.memory)
                     }
 
-                    MetricSummaryCard(
+                    // Disk Card
+                    dashboardCard(
+                        title: "Disk",
+                        metric: "-- %",
+                        icon: "internaldrive.fill",
+                        tint: AppTheme.diskColor,
+                        sparkline: [50, 45, 48, 52, 50],
+                        status: .normal,
+                        miniStats: [
+                            ("Speed", "-- MB/s"),
+                            ("Used", "-- GB / -- GB")
+                        ]
+                    ) {
+                        // Placeholder for disk navigation
+                    }
+
+                    // Network Card
+                    dashboardCard(
+                        title: "Network",
+                        metric: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s",
+                        icon: "network",
+                        tint: AppTheme.networkDownloadColor,
+                        sparkline: appState.networkSnapshot?.history60s.map { Double($0.downloadBytesPerSecond) / 1024 } ?? [],
+                        status: .normal,
+                        miniStats: [
+                            ("Upload", "↑ \(formatBytes(appState.network.bytesOutPerSecond))/s"),
+                            ("IP", appState.network.publicIP ?? "--")
+                        ]
+                    ) {
+                        onNavigate(.network)
+                    }
+
+                    // Battery Card
+                    dashboardCard(
                         title: "Battery",
-                        value: appState.batterySnapshot.map { String(format: "%.0f%%", $0.chargePercent) } ?? "N/A",
+                        metric: appState.batterySnapshot.map { String(format: "%.0f%%", $0.chargePercent) } ?? "N/A",
                         icon: "battery.100",
                         tint: AppTheme.batteryColor,
                         sparkline: appState.batterySnapshot?.chargeHistory24h.map(\.chargePercent) ?? [],
                         status: batteryStatus,
-                        gradientAngle: gradientAngle
+                        miniStats: [
+                            ("Health", appState.batterySnapshot.map { String(format: "%.0f%%", $0.healthPercent) } ?? "--"),
+                            ("Time", "-- h remaining")
+                        ]
                     ) {
                         onNavigate(.battery)
+                    }
+
+                    // Temperature Card
+                    dashboardCard(
+                        title: "Thermal",
+                        metric: appState.thermalSnapshot.map { String(format: "%.0f°C", hottestTemp(in: $0)) } ?? "--",
+                        icon: "thermometer.sun.fill",
+                        tint: AppTheme.temperatureColor,
+                        sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? [],
+                        status: thermalStatus,
+                        miniStats: [
+                            ("Fan", "-- RPM"),
+                            ("Status", thermalStatus == .critical ? "Hot" : "Normal")
+                        ]
+                    ) {
+                        onNavigate(.thermal)
+                    }
+
+                    // System Health Card
+                    dashboardCard(
+                        title: "Health",
+                        metric: "Good",
+                        icon: "heart.fill",
+                        tint: .green,
+                        sparkline: [100, 98, 99, 97, 100],
+                        status: .normal,
+                        miniStats: [
+                            ("Uptime", formatUptime()),
+                            ("Alerts", "\(alertsStore.badgeCountLastHour) recent")
+                        ]
+                    ) {
+                        // Placeholder for system health navigation
                     }
                 }
 
@@ -102,54 +157,104 @@ struct DashboardView: View {
         }
         .onAppear {
             systemInfo = .current()
-            withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
-                gradientAngle = 360
+        }
+    }
+
+    @ViewBuilder
+    private func dashboardCard(
+        title: String,
+        metric: String,
+        icon: String,
+        tint: Color,
+        sparkline: [Double],
+        status: StatusBadge.Status,
+        miniStats: [(String, String)],
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            GlassCard(material: .thin, cornerRadius: 12) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label(title, systemImage: icon)
+                            .font(.headline)
+                            .foregroundStyle(tint)
+                        Spacer()
+                        StatusDot(status: status)
+                    }
+
+                    Text(metric)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .contentTransition(.numericText())
+
+                    if !sparkline.isEmpty {
+                        SparklineView(values: sparkline, color: tint)
+                            .frame(height: 32)
+                    }
+
+                    VStack(spacing: 6) {
+                        ForEach(miniStats, id: \.0) { label, value in
+                            HStack {
+                                Text(label)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(value)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                }
+                .padding(14)
             }
         }
+        .buttonStyle(.plain)
     }
 
     private var systemBanner: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(systemInfo.computerName)
-                    .font(.title2.weight(.semibold))
-                Text("\(systemInfo.osVersion) • \(systemInfo.chipName)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text("Uptime: \(formatUptime())")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        GlassCard(material: .regular, cornerRadius: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(systemInfo.computerName)
+                        .font(.title2.weight(.semibold))
+                    Text("\(systemInfo.osVersion) • \(systemInfo.chipName)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("Uptime: \(formatUptime())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "macbook.and.iphone")
+                    .font(.largeTitle)
+                    .foregroundStyle(.tint)
             }
-
-            Spacer()
-
-            Image(systemName: "macbook.and.iphone")
-                .font(.largeTitle)
-                .foregroundStyle(.tint)
+            .padding(14)
         }
-        .padding(14)
-        .background(Color(.controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private var cpuStatus: MetricSummaryCard.Status {
+    private var cpuStatus: StatusBadge.Status {
         if appState.cpu.usagePercent >= 90 { return .critical }
         if appState.cpu.usagePercent >= 75 { return .warning }
         return .normal
     }
 
-    private var memoryStatus: MetricSummaryCard.Status {
+    private var memoryStatus: StatusBadge.Status {
         if appState.ram.usedPercent >= 90 { return .critical }
         if appState.ram.usedPercent >= 80 { return .warning }
         return .normal
     }
 
-    private var gpuStatus: MetricSummaryCard.Status {
+    private var gpuStatus: StatusBadge.Status {
         if appState.gpu.usagePercent >= 95 { return .critical }
         if appState.gpu.usagePercent >= 80 { return .warning }
         return .normal
     }
 
-    private var thermalStatus: MetricSummaryCard.Status {
+    private var thermalStatus: StatusBadge.Status {
         guard let thermal = appState.thermalSnapshot else { return .normal }
         let hot = hottestTemp(in: thermal)
         if hot >= 90 { return .critical }
@@ -157,7 +262,7 @@ struct DashboardView: View {
         return .normal
     }
 
-    private var batteryStatus: MetricSummaryCard.Status {
+    private var batteryStatus: StatusBadge.Status {
         guard let battery = appState.batterySnapshot else { return .normal }
         if battery.chargePercent <= 10 { return .critical }
         if battery.chargePercent <= 20 { return .warning }
@@ -180,63 +285,6 @@ struct DashboardView: View {
         if days > 0 { return "\(days)d \(hours)h \(minutes)m" }
         if hours > 0 { return "\(hours)h \(minutes)m" }
         return "\(minutes)m"
-    }
-}
-
-struct MetricSummaryCard: View {
-    enum Status {
-        case normal
-        case warning
-        case critical
-    }
-
-    let title: String
-    let value: String
-    let icon: String
-    let tint: Color
-    let sparkline: [Double]
-    let status: Status
-    let gradientAngle: Double
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                Label(title, systemImage: icon)
-                    .font(.headline)
-                    .foregroundStyle(tint)
-
-                Text(value)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .contentTransition(.numericText())
-
-                SparklineView(values: sparkline.isEmpty ? [0] : sparkline, color: tint)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 130, alignment: .leading)
-            .background(Color(.controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(borderOverlay)
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private var borderOverlay: some View {
-        let base = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        if status == .normal {
-            base.stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-        } else {
-            base
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [.orange, .red, .pink, .orange]),
-                        center: .center,
-                        angle: .degrees(gradientAngle)
-                    ),
-                    lineWidth: 1.8
-                )
-        }
     }
 }
 

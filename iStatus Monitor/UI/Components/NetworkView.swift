@@ -12,100 +12,189 @@ struct NetworkView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Network")
-                    .font(.headline)
-                Spacer()
-                Text(snapshot.connectivitySatisfied ? "Connected" : "Offline")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(snapshot.connectivitySatisfied ? .green : .red)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Network Status Hero
+                GlassCard(material: .thin, padding: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("Network Status")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            StatusBadge(status: snapshot.connectivitySatisfied ? .normal : .critical)
+                        }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Since launch")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 16) {
-                    Text("↓ \(Int(snapshot.totalDownloadSinceLaunch).toMemoryString())")
-                    Text("↑ \(Int(snapshot.totalUploadSinceLaunch).toMemoryString())")
-                }
-                .font(.subheadline.monospacedDigit())
-            }
+                        HStack(spacing: 20) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Download")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Text(Int(snapshot.interfaces.first?.downloadBytesPerSecond ?? 0).toNetworkSpeedString())
+                                    .font(.system(size: 28, weight: .light))
+                                    .foregroundStyle(AppTheme.networkDownloadColor)
+                            }
+                            
+                            Divider()
+                                .frame(height: 50)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Upload")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Text(Int(snapshot.interfaces.first?.uploadBytesPerSecond ?? 0).toNetworkSpeedString())
+                                    .font(.system(size: 28, weight: .light))
+                                    .foregroundStyle(AppTheme.networkUploadColor)
+                            }
+                            
+                            Spacer()
+                        }
 
-            ForEach(snapshot.interfaces) { iface in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("\(iface.displayName) (\(iface.name))")
-                            .fontWeight(iface.isPrimary ? .bold : .regular)
-                        Spacer()
-                        Text("↓ \(Int(iface.downloadBytesPerSecond).toNetworkSpeedString())")
-                            .font(.caption.monospacedDigit())
-                        Text("↑ \(Int(iface.uploadBytesPerSecond).toNetworkSpeedString())")
-                            .font(.caption.monospacedDigit())
-                    }
-
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.gray.opacity(0.15))
-
-                            HStack(spacing: 2) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(AppTheme.networkDownloadColor)
-                                    .frame(width: geo.size.width * CGFloat(Double(iface.downloadBytesPerSecond) / Double(maxSpeed)))
-
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(AppTheme.networkUploadColor)
-                                    .frame(width: geo.size.width * CGFloat(Double(iface.uploadBytesPerSecond) / Double(maxSpeed)))
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Total Download (Launch)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(Int(snapshot.totalDownloadSinceLaunch).toMemoryString())
+                                    .font(.caption2.monospacedDigit())
+                            }
+                            HStack {
+                                Text("Total Upload (Launch)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(Int(snapshot.totalUploadSinceLaunch).toMemoryString())
+                                    .font(.caption2.monospacedDigit())
                             }
                         }
                     }
-                    .frame(height: 10)
+                }
 
-                    HStack(spacing: 14) {
-                        Text("Total ↓ \(Int(iface.totalBytesReceived).toMemoryString())")
-                        Text("Total ↑ \(Int(iface.totalBytesSent).toMemoryString())")
-                        if let ipv4 = iface.ipv4Address {
-                            Text("IPv4: \(ipv4)")
-                        }
-                        if let ipv6 = iface.ipv6Address {
-                            Text("IPv6: \(ipv6)")
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                // Network Interfaces
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Network Interfaces")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    ForEach(snapshot.interfaces) { iface in
+                        GlassCard(material: .thin) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(iface.displayName)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.primary)
+                                        Text(iface.name)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        HStack(spacing: 8) {
+                                            Label(Int(iface.downloadBytesPerSecond).toNetworkSpeedString(), systemImage: "arrow.down")
+                                                .font(.caption.monospacedDigit())
+                                                .foregroundStyle(AppTheme.networkDownloadColor)
+                                            Label(Int(iface.uploadBytesPerSecond).toNetworkSpeedString(), systemImage: "arrow.up")
+                                                .font(.caption.monospacedDigit())
+                                                .foregroundStyle(AppTheme.networkUploadColor)
+                                        }
+                                    }
+                                }
+
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(Color.gray.opacity(0.15))
+
+                                        HStack(spacing: 2) {
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(AppTheme.networkDownloadColor)
+                                                .frame(width: geo.size.width * CGFloat(Double(iface.downloadBytesPerSecond) / Double(maxSpeed)))
+
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(AppTheme.networkUploadColor)
+                                                .frame(width: geo.size.width * CGFloat(Double(iface.uploadBytesPerSecond) / Double(maxSpeed)))
+                                        }
+                                    }
+                                }
+                                .frame(height: 10)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if let ipv4 = iface.ipv4Address {
+                                        HStack {
+                                            Text("IPv4")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Text(ipv4)
+                                                .font(.caption2.monospacedDigit())
+                                        }
+                                    }
+                                    if let ipv6 = iface.ipv6Address {
+                                        HStack {
+                                            Text("IPv6")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Text(ipv6)
+                                                .font(.caption2.monospacedDigit())
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                        }
+                                    }
+                                    HStack {
+                                        Text("Total Received")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text(Int(iface.totalBytesReceived).toMemoryString())
+                                            .font(.caption2.monospacedDigit())
+                                    }
+                                    HStack {
+                                        Text("Total Sent")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text(Int(iface.totalBytesSent).toMemoryString())
+                                            .font(.caption2.monospacedDigit())
+                                    }
+                                }
+                            }
                         }
                     }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 2)
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Throughput (60s)")
-                    .font(.caption.weight(.semibold))
+                // Throughput Chart
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Throughput (60s)")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-                Chart(snapshot.history60s) { point in
-                    LineMark(
-                        x: .value("Time", point.timestamp),
-                        y: .value("Download", point.downloadBytesPerSecond)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(AppTheme.networkDownloadColor)
+                    GlassCard(material: .thin) {
+                        Chart(snapshot.history60s) { point in
+                            LineMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Download", point.downloadBytesPerSecond)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(AppTheme.networkDownloadColor)
 
-                    LineMark(
-                        x: .value("Time", point.timestamp),
-                        y: .value("Upload", point.uploadBytesPerSecond)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(AppTheme.networkUploadColor)
+                            LineMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Upload", point.uploadBytesPerSecond)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(AppTheme.networkUploadColor)
+                        }
+                        .frame(height: 120)
+                        .chartXAxis(.hidden)
+                        .chartYAxis(.hidden)
+                    }
                 }
-                .frame(height: 72)
-                .chartXAxis(.hidden)
-                .chartYAxis(.hidden)
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: snapshot)
+        .animation(AppTheme.springAnimation, value: snapshot)
     }
 }
 

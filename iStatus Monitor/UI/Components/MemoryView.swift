@@ -28,80 +28,93 @@ struct MemoryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Memory")
-                .font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Memory Pressure Ring
+                GlassCard(material: .thin, padding: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Memory Pressure")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
 
-            HStack(spacing: 20) {
-                Chart(ringData, id: \.label) { item in
-                    SectorMark(
-                        angle: .value("Share", item.value),
-                        innerRadius: .ratio(0.62),
-                        angularInset: 1.2
-                    )
-                    .foregroundStyle(item.color)
-                }
-                .frame(width: 132, height: 132)
-                .chartLegend(.hidden)
-                .overlay {
-                    VStack(spacing: 4) {
-                        Text("Used")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(Int(snapshot.usedRatio * 100))%")
-                            .font(.title3.weight(.semibold))
+                        HStack(spacing: 20) {
+                            CircularGauge(
+                                value: Double(snapshot.usedRatio) * 100,
+                                color: AppTheme.ramColor,
+                                icon: "memorychip",
+                                title: "Memory Usage",
+                                label: snapshot.usedString,
+                                strokeWidth: 10
+                            )
+                            .frame(width: 140, height: 160)
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                MetricRowView(
+                                    title: "Used",
+                                    value: snapshot.usedString,
+                                    tint: AppTheme.memoryUsedColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Total",
+                                    value: Int(snapshot.totalBytes).toMemoryString(),
+                                    tint: AppTheme.memoryUsedColor
+                                )
+                                
+                                HStack {
+                                    Text("Status")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    StatusBadge(status: pressureStatus)
+                                }
+                                
+                                MetricRowView(
+                                    title: "Swap Used",
+                                    value: snapshot.swapUsedString,
+                                    tint: AppTheme.memoryUsedColor
+                                )
+                            }
+                            
+                            Spacer()
+                        }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(snapshot.usedString) / \(Int(snapshot.totalBytes).toMemoryString())")
-                        .font(.subheadline.monospacedDigit())
-                    Text("Swap: \(snapshot.swapUsedString) / \(snapshot.swapTotalString)")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    Text("Updated \(snapshot.timestamp.formatted(date: .omitted, time: .standard))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                // Memory Categories
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Memory Breakdown")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    GlassCard(material: .thin) {
+                        VStack(spacing: 12) {
+                            GeometryReader { geo in
+                                HStack(spacing: 0) {
+                                    segment(width: geo.size.width, ratio: ratio(snapshot.appBytes), color: AppTheme.memoryAppColor)
+                                    segment(width: geo.size.width, ratio: ratio(snapshot.wiredBytes), color: AppTheme.memoryWiredColor)
+                                    segment(width: geo.size.width, ratio: ratio(snapshot.compressedBytes), color: AppTheme.memoryCompressedColor)
+                                    segment(width: geo.size.width, ratio: ratio(snapshot.cachedBytes), color: AppTheme.memoryCachedColor)
+                                    segment(width: geo.size.width, ratio: ratio(snapshot.freeBytes), color: AppTheme.memoryFreeColor)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                            }
+                            .frame(height: 18)
+
+                            HStack(spacing: 10) {
+                                legend("App", snapshot.appString, AppTheme.memoryAppColor)
+                                legend("Wired", snapshot.wiredString, AppTheme.memoryWiredColor)
+                                legend("Compressed", snapshot.compressedString, AppTheme.memoryCompressedColor)
+                                legend("Cached", snapshot.cachedString, AppTheme.memoryCachedColor)
+                                legend("Free", snapshot.freeString, AppTheme.memoryFreeColor)
+                            }
+                            .font(.caption)
+                        }
+                    }
                 }
-
-                Spacer()
-            }
-
-            GeometryReader { geo in
-                HStack(spacing: 0) {
-                    segment(width: geo.size.width, ratio: ratio(snapshot.appBytes), color: AppTheme.memoryAppColor)
-                    segment(width: geo.size.width, ratio: ratio(snapshot.wiredBytes), color: AppTheme.memoryWiredColor)
-                    segment(width: geo.size.width, ratio: ratio(snapshot.compressedBytes), color: AppTheme.memoryCompressedColor)
-                    segment(width: geo.size.width, ratio: ratio(snapshot.cachedBytes), color: AppTheme.memoryCachedColor)
-                    segment(width: geo.size.width, ratio: ratio(snapshot.freeBytes), color: AppTheme.memoryFreeColor)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            }
-            .frame(height: 18)
-
-            HStack(spacing: 10) {
-                legend("App", snapshot.appString, AppTheme.memoryAppColor)
-                legend("Wired", snapshot.wiredString, AppTheme.memoryWiredColor)
-                legend("Compressed", snapshot.compressedString, AppTheme.memoryCompressedColor)
-                legend("Cached", snapshot.cachedString, AppTheme.memoryCachedColor)
-                legend("Free", snapshot.freeString, AppTheme.memoryFreeColor)
-            }
-            .font(.caption)
-
-            HStack {
-                Text("Memory Pressure")
-                    .font(.subheadline)
-                Text(pressureLabel)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(pressureColor.opacity(0.16))
-                    .foregroundStyle(pressureColor)
-                    .clipShape(Capsule())
-                Spacer()
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.86), value: snapshot)
+        .animation(AppTheme.springAnimation, value: snapshot)
     }
 
     private func ratio(_ value: UInt64) -> CGFloat {
@@ -122,6 +135,14 @@ struct MemoryView: View {
                 .fill(color)
                 .frame(width: 7, height: 7)
             Text("\(title): \(value)")
+        }
+    }
+    
+    private var pressureStatus: StatusBadge.Status {
+        switch snapshot.pressure {
+        case .normal: return .normal
+        case .warning: return .warning
+        case .critical: return .critical
         }
     }
 }

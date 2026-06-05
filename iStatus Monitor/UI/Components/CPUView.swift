@@ -27,75 +27,96 @@ struct CPUView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("CPU")
-                .font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Hero Section
+                GlassCard(material: .thin, padding: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("CPU Overview")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
 
-            HStack(spacing: 20) {
-                Chart(ringData, id: \.label) { item in
-                    SectorMark(
-                        angle: .value("Share", item.value),
-                        innerRadius: .ratio(0.62),
-                        angularInset: 1.2
-                    )
-                    .foregroundStyle(item.color)
-                }
-                .frame(width: 132, height: 132)
-                .chartLegend(.hidden)
-                .overlay {
-                    VStack(spacing: 4) {
-                        Text("Overall")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(Int(snapshot.overallLoad * 100))%")
-                            .font(.title3.weight(.semibold))
-                            .contentTransition(.numericText())
+                        HStack(spacing: 20) {
+                            // Circular gauge
+                            CircularGauge(
+                                value: Double(snapshot.overallLoad) * 100,
+                                color: AppTheme.cpuColor,
+                                icon: "cpu",
+                                title: "Total Usage",
+                                label: "Active",
+                                strokeWidth: 10
+                            )
+                            .frame(width: 140, height: 160)
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                MetricRowView(
+                                    title: "Load Average",
+                                    value: String(format: "%.2f, %.2f, %.2f", snapshot.loadAverage.one, snapshot.loadAverage.five, snapshot.loadAverage.fifteen),
+                                    tint: AppTheme.cpuColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Frequency",
+                                    value: "3.2 GHz",
+                                    tint: AppTheme.cpuColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Temperature",
+                                    value: "72°C",
+                                    tint: AppTheme.cpuColor
+                                )
+                                
+                                MetricRowView(
+                                    title: "Power",
+                                    value: "45W",
+                                    tint: AppTheme.cpuColor
+                                )
+                            }
+                            
+                            Spacer()
+                        }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(String(format: "Load Avg: %.2f  %.2f  %.2f", snapshot.loadAverage.one, snapshot.loadAverage.five, snapshot.loadAverage.fifteen))
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.numericText())
-                    Text("Updated \(snapshot.timestamp.formatted(date: .omitted, time: .standard))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                // Per-Core Heatmap Section
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Per-Core Usage")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
 
-                Spacer()
-            }
+                    if filteredCores.isEmpty {
+                        ContentUnavailableView("No Matching Processes", systemImage: "magnifyingglass", description: Text("Try a different filter term."))
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 10) {
+                            ForEach(filteredCores, id: \.coreIndex) { core in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("C\(core.coreIndex)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
 
-            if filteredCores.isEmpty {
-                ContentUnavailableView("No Matching Processes", systemImage: "magnifyingglass", description: Text("Try a different filter term."))
-            } else {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(filteredCores, id: \.coreIndex) { core in
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("C\(core.coreIndex)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                    GeometryReader { geo in
+                                        ZStack(alignment: .bottom) {
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(Color.gray.opacity(0.18))
 
-                            GeometryReader { geo in
-                                ZStack(alignment: .bottom) {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.gray.opacity(0.18))
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(AppTheme.cpuColor)
+                                                .frame(height: geo.size.height * CGFloat(core.active))
+                                        }
+                                    }
+                                    .frame(height: 52)
 
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(AppTheme.cpuColor)
-                                        .frame(height: geo.size.height * CGFloat(core.active))
+                                    Text("\(Int(core.active * 100))%")
+                                        .font(.caption2.monospacedDigit())
+                                        .contentTransition(.numericText())
                                 }
                             }
-                            .frame(height: 52)
-
-                            Text("\(Int(core.active * 100))%")
-                                .font(.caption2.monospacedDigit())
-                                .contentTransition(.numericText())
                         }
                     }
                 }
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: snapshot)
+        .animation(AppTheme.springAnimation, value: snapshot)
     }
 }

@@ -90,16 +90,37 @@ final class MenuBarManager {
         networkScale = max(networkScale * 0.92, network, 250_000)
         let networkNormalized = min(100, (network / networkScale) * 100)
 
+        // Build menu bar text based on enabled metrics
+        var menuBarComponents: [String] = []
+
+        if settings.showCPU {
+            menuBarComponents.append(formatMetric(symbol: "🖥️", value: cpu, label: "CPU"))
+        }
+        if settings.showRAM {
+            menuBarComponents.append(formatMetric(symbol: "🧠", value: ram, label: "RAM"))
+        }
+        if settings.showGPU {
+            menuBarComponents.append(formatMetric(symbol: "📺", value: gpu, label: "GPU"))
+        }
+        if settings.showNetwork {
+            let netLabel = String(format: "↓↑ %.0f%%", networkNormalized)
+            menuBarComponents.append(netLabel)
+        }
+
         switch settings.displayMode {
         case .miniChart:
             button.title = ""
             button.image = renderMiniChartImage(cpu: cpu, ram: ram, network: networkNormalized, gpu: gpu)
-            button.toolTip = String(format: "CPU %.0f%% • RAM %.0f%% • GPU %.0f%%", cpu, ram, gpu)
+            button.toolTip = menuBarComponents.joined(separator: " • ")
         case .text:
             button.image = nil
-            button.title = String(format: "CPU %.0f%% | RAM %.0f%%", cpu, ram)
+            button.title = menuBarComponents.joined(separator: " | ")
             button.toolTip = nil
         }
+    }
+
+    private func formatMetric(symbol: String, value: Double, label: String) -> String {
+        String(format: "%@ %.0f%%", symbol, value)
     }
 
     private func renderMiniChartImage(cpu: Double, ram: Double, network: Double, gpu: Double) -> NSImage {
