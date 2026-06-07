@@ -11,7 +11,7 @@ struct HistoryStoreTests {
         let schema = Schema([MetricRecord.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         modelContainer = try ModelContainer(for: schema, configurations: [config])
-        store = HistoryStore(container: modelContainer, persistInterval: 0)
+        store = HistoryStore(modelContainer: modelContainer, persistInterval: 0)
     }
 
     @Test("ingest persists metric records")
