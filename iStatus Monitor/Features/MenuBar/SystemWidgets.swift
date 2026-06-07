@@ -101,7 +101,7 @@ nonisolated struct GPUWidget: MenuBarWidget {
 nonisolated struct NetworkWidget: MenuBarWidget {
     let id = "network"
     let name = "Network"
-    let sfSymbol = "arrow.down.arrow.up"
+    let sfSymbol = "arrow.up.arrow.down"
     // Informational: thresholds are unreachable so the default severity is
     // always `.normal`; `severity(from:)` is also overridden for clarity.
     let warningThreshold: Double = .infinity
