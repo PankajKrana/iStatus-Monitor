@@ -18,6 +18,7 @@ import Foundation
 actor NetworkInsightsMonitor {
     private let connectionsInterval: TimeInterval = 3
     private let publicIPInterval: TimeInterval = 15 * 60
+    private let publicIPRetryInterval: TimeInterval = 2 * 60   // shorter backoff after a failed fetch
     private let maxConnections = 50
     private let topCount = 5
 
@@ -25,7 +26,8 @@ actor NetworkInsightsMonitor {
     private var cachedConnections: [NetworkConnection] = []
     private var cachedTopProcesses: [NetworkProcess] = []
 
-    private var lastPublicIPAt: Date?
+    private var lastPublicIPAt: Date?       // stamped only on a successful fetch
+    private var lastPublicIPAttemptAt: Date?  // stamped on every attempt (governs retry pacing)
     private var cachedPublicIP: String?
     private var publicIPInFlight = false
 
@@ -37,13 +39,12 @@ actor NetworkInsightsMonitor {
             lastConnectionsAt = now
         }
 
-        if !publicIPInFlight,
-           lastPublicIPAt == nil || now.timeIntervalSince(lastPublicIPAt!) >= publicIPInterval {
+        if shouldRefreshPublicIP(now: now) {
             publicIPInFlight = true
-            lastPublicIPAt = now   // set immediately so we don't re-trigger while in flight
+            lastPublicIPAttemptAt = now   // pace attempts; success additionally stamps lastPublicIPAt
             Task { [weak self] in
                 let ip = await NetworkInsightsMonitor.fetchPublicIP()
-                await self?.storePublicIP(ip)
+                await self?.storePublicIP(ip, at: now)
             }
         }
 
@@ -55,9 +56,25 @@ actor NetworkInsightsMonitor {
         )
     }
 
-    private func storePublicIP(_ ip: String?) {
-        if let ip { cachedPublicIP = ip }
+    /// Refresh when never fetched, when the last success is older than the normal
+    /// interval, or — after a failure — once the shorter retry interval elapses.
+    /// Never overlaps an in-flight fetch.
+    private func shouldRefreshPublicIP(now: Date) -> Bool {
+        guard !publicIPInFlight else { return false }
+        if let lastSuccess = lastPublicIPAt {
+            guard now.timeIntervalSince(lastSuccess) >= publicIPInterval else { return false }
+        }
+        if let lastAttempt = lastPublicIPAttemptAt {
+            return now.timeIntervalSince(lastAttempt) >= publicIPRetryInterval
+        }
+        return true
+    }
+
+    private func storePublicIP(_ ip: String?, at attemptTime: Date) {
         publicIPInFlight = false
+        guard let ip else { return }   // failure: leave lastPublicIPAt unset so retry pacing applies
+        cachedPublicIP = ip
+        lastPublicIPAt = attemptTime
     }
 
     // MARK: Public IP (off-tick, cached)
@@ -78,8 +95,7 @@ actor NetworkInsightsMonitor {
     // MARK: Connection enumeration (libproc socket fdinfo)
 
     private func enumerateConnections() -> ([NetworkConnection], [NetworkProcess]) {
-        var connections: [NetworkConnection] = []
-        var perProcess: [pid_t: (name: String, count: Int)] = [:]
+        var collected: [NetworkConnection] = []
 
         for pid in listPIDs() {
             let sizeProbe = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
@@ -104,17 +120,31 @@ actor NetworkInsightsMonitor {
                     let resolved = self.name(for: pid)
                     processName = resolved
                     return resolved
-                }) else { continue }
+                }), isMeaningful(connection) else { continue }
 
-                if connections.count < maxConnections {
-                    connections.append(connection)
-                }
-                var entry = perProcess[pid] ?? (name: connection.processName, count: 0)
-                entry.count += 1
-                perProcess[pid] = entry
+                collected.append(connection)
             }
         }
 
+        // Sort meaningful connections (ESTABLISHED first) before applying the cap,
+        // so the displayed/capped set is the relevant one — not arbitrary fd order.
+        collected.sort { lhs, rhs in
+            let lhsEstablished = lhs.state == "ESTABLISHED"
+            let rhsEstablished = rhs.state == "ESTABLISHED"
+            if lhsEstablished != rhsEstablished { return lhsEstablished }
+            if lhs.processName != rhs.processName { return lhs.processName < rhs.processName }
+            return lhs.remotePort < rhs.remotePort
+        }
+
+        // Per-process counts reflect the full meaningful set (before the display cap).
+        var perProcess: [pid_t: (name: String, count: Int)] = [:]
+        for connection in collected {
+            var entry = perProcess[connection.pid] ?? (name: connection.processName, count: 0)
+            entry.count += 1
+            perProcess[connection.pid] = entry
+        }
+
+        let connections = Array(collected.prefix(maxConnections))
         let topProcesses = Array(
             perProcess
                 .map { NetworkProcess(pid: $0.key, name: $0.value.name, connectionCount: $0.value.count) }
@@ -122,6 +152,17 @@ actor NetworkInsightsMonitor {
                 .prefix(topCount)
         )
         return (connections, topProcesses)
+    }
+
+    /// Filters out listeners, unbound sockets, and dead entries — keeping only
+    /// connections with a real remote peer. UDP sockets count only when "connected"
+    /// (non-zero remote).
+    private func isMeaningful(_ connection: NetworkConnection) -> Bool {
+        if connection.state == "CLOSED" || connection.state == "LISTEN" { return false }
+        if connection.remotePort == 0 { return false }
+        let deadRemotes: Set<String> = ["0.0.0.0", "::", ""]
+        if deadRemotes.contains(connection.remoteAddress) { return false }
+        return true
     }
 
     /// Build a `NetworkConnection` from a socket's `socket_info`, for inet TCP/UDP
