@@ -76,6 +76,11 @@ struct iStatus_MonitorApp: App {
                     await monitorService.start(appState: appState)
                 }
                 .onAppear {
+                    // Re-apply the saved Dock-icon policy here, not in
+                    // MenuBarSettings.init: a setActivationPolicy call during App
+                    // init is overridden when the WindowGroup activates, so it must
+                    // run after launch to stick.
+                    menuBarSettings.applyActivationPolicy()
                     alertsStore.refresh()
                     historyViewModel.reload()
                 }
@@ -93,7 +98,7 @@ struct iStatus_MonitorApp: App {
         MenuBarExtraScene(appState: appState, widgetManager: widgetManager)
 
         Settings {
-            SettingsView(widgetManager: widgetManager)
+            SettingsView(widgetManager: widgetManager, menuBarSettings: menuBarSettings)
         }
 
         .commands {

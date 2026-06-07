@@ -12,6 +12,7 @@ import SwiftUI
 /// `resetToDefaults`.
 struct MenuBarSettingsPanel: View {
     @Bindable var widgetManager: WidgetManager
+    let menuBarSettings: MenuBarSettings
 
     var body: some View {
         Form {
@@ -21,10 +22,32 @@ struct MenuBarSettingsPanel: View {
                 layoutSection
             }
             widgetsSection
+            dockSection
             resetSection
         }
         .formStyle(.grouped)
         .padding(16)
+    }
+
+    // MARK: Dock
+
+    /// Hide the Dock icon and run only in the menu bar. Backed by
+    /// `MenuBarSettings.hideDockIcon` (inverse of `showDockIcon`), which persists
+    /// and applies the activation policy — no separate preference.
+    private var dockSection: some View {
+        Section("Dock") {
+            Toggle(isOn: Binding(
+                get: { menuBarSettings.hideDockIcon },
+                set: { menuBarSettings.hideDockIcon = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Hide Dock Icon")
+                    Text("Run iStatus Monitor only in the menu bar.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     // MARK: Mode

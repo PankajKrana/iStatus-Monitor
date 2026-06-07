@@ -2,11 +2,11 @@ import SwiftUI
 
 struct SettingsView: View {
     let widgetManager: WidgetManager
+    let menuBarSettings: MenuBarSettings
 
     @State private var selectedSection: SettingsSection = .general
 
     @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
-    @AppStorage("showInDock") private var showInDock: Bool = true
     @AppStorage("defaultTab") private var defaultTab: String = NavigationTab.dashboard.rawValue
     @AppStorage("updateInterval") private var updateInterval: Double = 1.0
     @AppStorage("compactLayout") private var compactLayout: Bool = false
@@ -72,7 +72,7 @@ struct SettingsView: View {
         switch selectedSection {
         case .general: generalSettings
         case .appearance: appearanceSettings
-        case .menuBar: MenuBarSettingsPanel(widgetManager: widgetManager)
+        case .menuBar: MenuBarSettingsPanel(widgetManager: widgetManager, menuBarSettings: menuBarSettings)
         case .notifications: notificationsSettings
         case .about: aboutSettings
         }
@@ -82,7 +82,6 @@ struct SettingsView: View {
         Form {
             Section("General") {
                 Toggle("Launch at login", isOn: $launchAtLogin)
-                Toggle("Show in Dock", isOn: $showInDock)
 
                 Picker("Default tab", selection: $defaultTab) {
                     ForEach(NavigationTab.allCases) { tab in
@@ -173,6 +172,7 @@ struct SettingsView: View {
             appState: AppState(),
             registry: WidgetRegistry(widgets: WidgetRegistry.builtInWidgets()),
             configurationStore: WidgetConfigurationStore()
-        )
+        ),
+        menuBarSettings: MenuBarSettings()
     )
 }

@@ -48,6 +48,14 @@ final class MenuBarSettings {
         }
     }
 
+    /// Inverse of `showDockIcon`, exposed for a "Hide Dock Icon" control. Backed
+    /// entirely by `showDockIcon` — same UserDefaults key and the same
+    /// `applyActivationPolicy()` side effect — so there is no separate preference.
+    var hideDockIcon: Bool {
+        get { !showDockIcon }
+        set { showDockIcon = !newValue }
+    }
+
     var launchAtLogin: Bool {
         didSet {
             defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
