@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 actor SystemMonitorService {
@@ -12,6 +13,12 @@ actor SystemMonitorService {
     private let alertEngine: AlertEngine
     private let batteryAlertService: BatteryAlertService
     private let historyStore: HistoryStore?
+    private let processMonitor: ProcessMonitor
+    private let networkInsightsMonitor: NetworkInsightsMonitor
+
+    /// Nominal CPU frequency, read once (static hardware fact). `nil` on Apple
+    /// Silicon, where the sysctl is unavailable.
+    private let cpuFrequencyGHz: Double?
 
     private var loopTask: Task<Void, Never>?
 
@@ -26,7 +33,9 @@ actor SystemMonitorService {
         dataStore: DataStore = DataStore(),
         alertEngine: AlertEngine = AlertEngine(),
         batteryAlertService: BatteryAlertService = BatteryAlertService(),
-        historyStore: HistoryStore? = nil
+        historyStore: HistoryStore? = nil,
+        processMonitor: ProcessMonitor = ProcessMonitor(),
+        networkInsightsMonitor: NetworkInsightsMonitor = NetworkInsightsMonitor()
     ) {
         self.cpuMonitor = cpuMonitor
         self.memoryMonitor = memoryMonitor
@@ -39,6 +48,9 @@ actor SystemMonitorService {
         self.alertEngine = alertEngine
         self.batteryAlertService = batteryAlertService
         self.historyStore = historyStore
+        self.processMonitor = processMonitor
+        self.networkInsightsMonitor = networkInsightsMonitor
+        self.cpuFrequencyGHz = Self.readNominalCPUFrequencyGHz()
     }
 
     func start(appState: AppState, interval: Duration = .seconds(1)) {
@@ -62,8 +74,21 @@ actor SystemMonitorService {
                 let snapshot = await sampleAllMetrics()
                 let cpuHistory = await cpuMonitor.history
 
+                // Phase 2A insights ride the same tick — no new loop/timer. Gathered
+                // concurrently with the metrics sample; applied to AppState separately
+                // so they never enter the persisted SystemSnapshot.
+                async let processSnapshot = processMonitor.latestSnapshot()
+                async let networkInsights = networkInsightsMonitor.latest()
+                let resolvedProcesses = await processSnapshot
+                let resolvedInsights = await networkInsights
+
                 await MainActor.run {
                     appState.apply(snapshot)
+                    appState.applyInsights(
+                        processes: resolvedProcesses,
+                        network: resolvedInsights,
+                        cpuFrequencyGHz: cpuFrequencyGHz
+                    )
                     if let cpuSnapshot = snapshot.cpuSnapshot {
                         appState.applyCPU(snapshot: cpuSnapshot, history: cpuHistory)
                     }
@@ -88,6 +113,20 @@ actor SystemMonitorService {
     func stop() {
         loopTask?.cancel()
         loopTask = nil
+    }
+
+    /// Nominal CPU frequency in GHz via sysctl. Returns `nil` on Apple Silicon
+    /// (`hw.cpufrequency*` is Intel-only); current per-core frequency on M-series
+    /// would require private IOReport APIs and is out of scope.
+    private static func readNominalCPUFrequencyGHz() -> Double? {
+        for key in ["hw.cpufrequency_max", "hw.cpufrequency"] {
+            var hz: UInt64 = 0
+            var size = MemoryLayout<UInt64>.size
+            if sysctlbyname(key, &hz, &size, nil, 0) == 0, hz > 0 {
+                return Double(hz) / 1_000_000_000.0
+            }
+        }
+        return nil
     }
 
     private func sampleAllMetrics() async -> SystemSnapshot {

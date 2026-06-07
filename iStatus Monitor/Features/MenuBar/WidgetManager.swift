@@ -97,6 +97,35 @@ final class WidgetManager {
         !configurationStore.enabledConfigurations().isEmpty
     }
 
+    // MARK: Module Mode (one MenuBarExtra per widget)
+
+    /// Compact (single combined item) vs. Module (one item per widget).
+    /// Presentation only — never changes which widgets are enabled.
+    var presentationMode: MenuBarPresentationMode {
+        get { configurationStore.presentationMode }
+        set { configurationStore.presentationMode = newValue }
+    }
+
+    /// Whether a widget is enabled in configuration. Drives a module item's
+    /// `isInserted` together with `presentationMode == .module`.
+    func isEnabled(_ id: String) -> Bool {
+        configurationStore.configuration(for: id)?.isEnabled ?? false
+    }
+
+    /// The rendered segment for a single widget, for a module item's own label.
+    /// Reuses the exact compact-mode formatting/severity via `MenuBarRenderer`.
+    /// Returns `nil` when the widget is unknown or has no data yet.
+    func moduleSegment(for id: String) -> MenuBarSegment? {
+        guard let configuration = configurationStore.configuration(for: id),
+              let widget = registry.widget(for: id),
+              widget.hasData(in: appState)
+        else {
+            return nil
+        }
+        let entry: MenuBarRenderer.Entry = (widget: widget, configuration: configuration)
+        return renderer.segments(for: [entry], appState: appState).first
+    }
+
     // MARK: Configuration Helpers (for the Settings UI)
 
     /// Reorder widgets — binds directly to a SwiftUI `List`'s `.onMove`.

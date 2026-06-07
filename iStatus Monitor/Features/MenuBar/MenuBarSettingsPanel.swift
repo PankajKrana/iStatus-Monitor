@@ -15,13 +15,37 @@ struct MenuBarSettingsPanel: View {
 
     var body: some View {
         Form {
+            modeSection
             previewSection
-            layoutSection
+            if widgetManager.presentationMode == .compact {
+                layoutSection
+            }
             widgetsSection
             resetSection
         }
         .formStyle(.grouped)
         .padding(16)
+    }
+
+    // MARK: Mode
+
+    /// Compact (single combined item) vs. Module (one item per enabled widget).
+    /// Purely presentation — switching modes never changes which widgets are
+    /// enabled.
+    private var modeSection: some View {
+        Section("Mode") {
+            Picker("Mode", selection: $widgetManager.presentationMode) {
+                ForEach(MenuBarPresentationMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Text(widgetManager.presentationMode.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     // MARK: Preview

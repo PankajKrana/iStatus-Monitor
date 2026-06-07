@@ -23,6 +23,11 @@ final class AppState {
     var isMonitoring = false
     var isMonitoringPaused = false
 
+    // Phase 2A insights — populated via `applyInsights`, never persisted.
+    var processSnapshot: ProcessSnapshot?
+    var networkInsights: NetworkInsights?
+    var cpuFrequencyGHz: Double?
+
     func apply(_ snapshot: SystemSnapshot) {
         cpu = snapshot.cpu
         ram = snapshot.ram
@@ -42,6 +47,15 @@ final class AppState {
     func applyCPU(snapshot: CPUSnapshot, history: [CPUSnapshot]) {
         cpuSnapshot = snapshot
         cpuHistory = history
+    }
+
+    /// Apply Phase 2A insight data gathered on the same monitoring tick. Kept
+    /// separate from `apply(_:)` so this volatile, popover-only data never enters
+    /// the persisted `SystemSnapshot`. `cpuFrequencyGHz` is `nil` on Apple Silicon.
+    func applyInsights(processes: ProcessSnapshot?, network: NetworkInsights?, cpuFrequencyGHz: Double?) {
+        processSnapshot = processes
+        networkInsights = network
+        self.cpuFrequencyGHz = cpuFrequencyGHz
     }
 
     var systemUptime: TimeInterval? {

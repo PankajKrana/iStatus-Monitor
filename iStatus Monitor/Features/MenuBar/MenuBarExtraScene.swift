@@ -16,12 +16,41 @@ struct MenuBarExtraScene: Scene {
     let widgetManager: WidgetManager
 
     var body: some Scene {
-        MenuBarExtra {
+        // Compact mode: the original single combined item.
+        MenuBarExtra(isInserted: compactInsertedBinding) {
             MenuBarPopoverView(appState: appState, widgetManager: widgetManager)
         } label: {
             MenuBarLabelView(widgetManager: widgetManager)
         }
         .menuBarExtraStyle(.window)
+
+        // Module mode: one item per widget, each inserted only when module mode
+        // is active and that widget is enabled in Settings. The catalogue is
+        // enumerated statically because `@SceneBuilder` cannot `ForEach` a runtime
+        // collection into scenes; this order is the initial left-to-right order
+        // (macOS lets the user ⌘-drag to rearrange thereafter).
+        Group {
+            moduleItem("cpu")
+            moduleItem("ram")
+            moduleItem("gpu")
+            moduleItem("network")
+            moduleItem("battery")
+            moduleItem("ssd")
+            moduleItem("thermal")
+        }
+    }
+
+    private func moduleItem(_ id: String) -> some Scene {
+        ModuleMenuBarExtra(appState: appState, widgetManager: widgetManager, widgetId: id)
+    }
+
+    /// Get reflects the active mode; set is a no-op so dragging the item out of
+    /// the menu bar does not silently switch modes.
+    private var compactInsertedBinding: Binding<Bool> {
+        Binding(
+            get: { widgetManager.presentationMode == .compact },
+            set: { _ in /* mode is controlled only by Settings — no-op */ }
+        )
     }
 }
 
@@ -57,8 +86,9 @@ struct MenuBarLabelView: View {
     }
 }
 
-/// A single widget's icon + value in the menu bar label.
-private struct MenuBarSegmentView: View {
+/// A single widget's icon + value in the menu bar label. Internal so module-mode
+/// labels (`ModuleMenuBarLabel`) render identically to compact-mode segments.
+struct MenuBarSegmentView: View {
     let segment: MenuBarSegment
 
     var body: some View {
@@ -144,8 +174,9 @@ private struct MetricRow: View {
 
 /// Maps a `WidgetSeverity` to a SwiftUI `Color` for the view layer. (The
 /// renderer has its own copy for `AttributedString`; keeping `Color` out of
-/// `WidgetSeverity` lets the protocol layer stay free of SwiftUI.)
-private func menuBarColor(for severity: WidgetSeverity) -> Color {
+/// `WidgetSeverity` lets the protocol layer stay free of SwiftUI.) Internal so
+/// module-mode views share one mapping.
+func menuBarColor(for severity: WidgetSeverity) -> Color {
     switch severity {
     case .normal: .primary
     case .warning: .orange
