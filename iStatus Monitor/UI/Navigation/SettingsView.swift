@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    let widgetManager: WidgetManager
+
     @State private var selectedSection: SettingsSection = .general
 
     @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
@@ -22,6 +24,7 @@ struct SettingsView: View {
     enum SettingsSection: String, CaseIterable, Identifiable {
         case general
         case appearance
+        case menuBar
         case notifications
         case about
 
@@ -31,6 +34,7 @@ struct SettingsView: View {
             switch self {
             case .general: "General"
             case .appearance: "Appearance"
+            case .menuBar: "Menu Bar"
             case .notifications: "Notifications"
             case .about: "About"
             }
@@ -40,6 +44,7 @@ struct SettingsView: View {
             switch self {
             case .general: "gearshape"
             case .appearance: "paintpalette"
+            case .menuBar: "menubar.rectangle"
             case .notifications: "bell.badge"
             case .about: "info.circle"
             }
@@ -67,6 +72,7 @@ struct SettingsView: View {
         switch selectedSection {
         case .general: generalSettings
         case .appearance: appearanceSettings
+        case .menuBar: MenuBarSettingsPanel(widgetManager: widgetManager)
         case .notifications: notificationsSettings
         case .about: aboutSettings
         }
@@ -162,5 +168,11 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    SettingsView(
+        widgetManager: WidgetManager(
+            appState: AppState(),
+            registry: WidgetRegistry(widgets: WidgetRegistry.builtInWidgets()),
+            configurationStore: WidgetConfigurationStore()
+        )
+    )
 }
