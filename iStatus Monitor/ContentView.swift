@@ -97,6 +97,6 @@ struct ContentView: View {
     ContentView(
         appState: AppState(),
         alertsStore: AlertsStore(engine: AlertEngine()),
-        historyViewModel: HistoryViewModel(historyStore: HistoryStore(container: try! ModelContainer(for: MetricRecord.self)))
+        historyViewModel: HistoryViewModel(historyStore: HistoryStore(modelContainer: try! ModelContainer(for: MetricRecord.self)))
     )
 }

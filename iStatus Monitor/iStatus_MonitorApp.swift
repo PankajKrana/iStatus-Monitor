@@ -40,7 +40,7 @@ struct iStatus_MonitorApp: App {
         modelContainer = container
 
         let alertEngine = AlertEngine()
-        let historyStore = HistoryStore(container: container)
+        let historyStore = HistoryStore(modelContainer: container)
 
         _alertsStore = State(initialValue: AlertsStore(engine: alertEngine))
         _historyViewModel = State(initialValue: HistoryViewModel(historyStore: historyStore))

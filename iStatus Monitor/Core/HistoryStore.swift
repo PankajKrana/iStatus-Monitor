@@ -1,15 +1,22 @@
 import Foundation
 import SwiftData
 
+@ModelActor
 actor HistoryStore {
-    private let context: ModelContext
     private let encoder = JSONEncoder()
 
     private var lastPersistAt: Date?
-    private let persistInterval: TimeInterval
+    // Write-once during init, read-only afterward. `nonisolated(unsafe)` lets the
+    // delegating initializer set it after `self.init(modelContainer:)` (a synchronous
+    // actor init is nonisolated, so a plain isolated `var` can't be mutated there).
+    private nonisolated(unsafe) var persistInterval: TimeInterval = 10
 
-    init(container: ModelContainer, persistInterval: TimeInterval = 10) {
-        self.context = ModelContext(container)
+    /// Configurable-interval initializer (used by tests). Delegates to the
+    /// `@ModelActor`-generated `init(modelContainer:)`, which creates the
+    /// `ModelContext` on this actor's serial executor, then overrides the
+    /// persist interval.
+    init(modelContainer: ModelContainer, persistInterval: TimeInterval = 10) {
+        self.init(modelContainer: modelContainer)
         self.persistInterval = persistInterval
     }
 
@@ -29,7 +36,7 @@ actor HistoryStore {
         }
 
         trimRollingWindow(reference: now)
-        try? context.save()
+        try? modelContext.save()
     }
 
     func history(for metric: MetricType, in interval: DateInterval) async -> [MetricRecord] {
@@ -41,7 +48,7 @@ actor HistoryStore {
             },
             sortBy: [SortDescriptor(\.timestamp, order: .forward)]
         )
-        return (try? context.fetch(descriptor)) ?? []
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 
     func dailyAverages(for metric: MetricType, days: Int) async -> [(Date, Double)] {
@@ -74,7 +81,7 @@ actor HistoryStore {
     private func persist(metric: MetricType, value: Double, snapshot: SystemSnapshot, at timestamp: Date) {
         let metadata = try? encoder.encode(snapshot)
         let record = MetricRecord(timestamp: timestamp, metricType: metric.rawValue, value: value, metadata: metadata)
-        context.insert(record)
+        modelContext.insert(record)
     }
 
     private func trimRollingWindow(reference: Date) {
@@ -86,9 +93,9 @@ actor HistoryStore {
             }
         )
 
-        if let old = try? context.fetch(descriptor) {
+        if let old = try? modelContext.fetch(descriptor) {
             for record in old {
-                context.delete(record)
+                modelContext.delete(record)
             }
         }
     }
