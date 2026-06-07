@@ -26,8 +26,10 @@ actor ProcessMonitor {
         var currentCPUTime: [pid_t: UInt64] = [:]
         currentCPUTime.reserveCapacity(pids.count)
 
-        var usages: [ProcessUsage] = []
-        usages.reserveCapacity(pids.count)
+        // Collect lightweight samples without names; names are resolved later for
+        // only the displayed top entries (≤ 2 × topCount), not all ~hundreds of pids.
+        var samples: [(pid: pid_t, cpuPercent: Double, memoryBytes: UInt64)] = []
+        samples.reserveCapacity(pids.count)
 
         for pid in pids {
             guard let info = taskInfo(for: pid) else { continue }
@@ -39,23 +41,30 @@ actor ProcessMonitor {
                 let deltaSeconds = Double(totalCPUNanos - previous) / 1_000_000_000.0
                 cpuPercent = (deltaSeconds / elapsed) * 100.0
             }
-
-            usages.append(
-                ProcessUsage(
-                    pid: pid,
-                    name: name(for: pid),
-                    cpuPercent: cpuPercent,
-                    memoryBytes: info.pti_resident_size
-                )
-            )
+            samples.append((pid: pid, cpuPercent: cpuPercent, memoryBytes: info.pti_resident_size))
         }
 
         previousCPUTime = currentCPUTime
         previousSampleTime = now
 
-        let topByCPU = Array(usages.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(topCount))
-        let topByMemory = Array(usages.sorted { $0.memoryBytes > $1.memoryBytes }.prefix(topCount))
-        return ProcessSnapshot(timestamp: now, topByCPU: topByCPU, topByMemory: topByMemory)
+        let topCPU = Array(samples.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(topCount))
+        let topMemory = Array(samples.sorted { $0.memoryBytes > $1.memoryBytes }.prefix(topCount))
+
+        // Resolve process names only for the union of displayed pids.
+        var names: [pid_t: String] = [:]
+        for entry in topCPU + topMemory where names[entry.pid] == nil {
+            names[entry.pid] = name(for: entry.pid)
+        }
+        func usage(_ entry: (pid: pid_t, cpuPercent: Double, memoryBytes: UInt64)) -> ProcessUsage {
+            ProcessUsage(
+                pid: entry.pid,
+                name: names[entry.pid] ?? "pid \(entry.pid)",
+                cpuPercent: entry.cpuPercent,
+                memoryBytes: entry.memoryBytes
+            )
+        }
+
+        return ProcessSnapshot(timestamp: now, topByCPU: topCPU.map(usage), topByMemory: topMemory.map(usage))
     }
 
     // MARK: libproc
