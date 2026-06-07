@@ -8,7 +8,7 @@ struct AlertEngineTests {
 
     init() {
         defaults = UserDefaults(suiteName: "AlertEngineTests-\(UUID().uuidString)")
-        engine = AlertEngine(defaults: defaults)
+        engine = AlertEngine(defaults: defaults, seedDefaultRules: false)
     }
 
     // MARK: - Rule Management Tests
@@ -20,18 +20,18 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "Zebra CPU",
-            enabled: true,
-            cooldownSeconds: 60
+            cooldown: 60,
+            isEnabled: true,
+            label: "Zebra CPU"
         )
         let rule2 = AlertRule(
             id: UUID(),
             metric: .memory,
             condition: .above,
             threshold: 85,
-            label: "Apple Memory",
-            enabled: true,
-            cooldownSeconds: 60
+            cooldown: 60,
+            isEnabled: true,
+            label: "Apple Memory"
         )
 
         await engine.upsertRule(rule1)
@@ -50,9 +50,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "CPU Alert",
-            enabled: true,
-            cooldownSeconds: 60
+            cooldown: 60,
+            isEnabled: true,
+            label: "CPU Alert"
         )
 
         await engine.upsertRule(rule)
@@ -69,9 +69,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "CPU Alert",
-            enabled: true,
-            cooldownSeconds: 60
+            cooldown: 60,
+            isEnabled: true,
+            label: "CPU Alert"
         )
 
         await engine.upsertRule(rule)
@@ -92,9 +92,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "CPU Alert",
-            enabled: true,
-            cooldownSeconds: 60
+            cooldown: 60,
+            isEnabled: true,
+            label: "CPU Alert"
         )
 
         await engine.upsertRule(rule)
@@ -108,15 +108,20 @@ struct AlertEngineTests {
 
     @Test("getHistory returns entries sorted by date descending")
     func getHistorySorted() async throws {
-        let engine = AlertEngine(defaults: defaults)
+        let rule = AlertRule(
+            id: UUID(),
+            metric: .cpu,
+            condition: .above,
+            threshold: 40,
+            cooldown: 0,
+            isEnabled: true,
+            label: "CPU Activity"
+        )
+        await engine.upsertRule(rule)
 
-        let snapshot1 = createMockSnapshot(cpu: 50)
-        let snapshot2 = createMockSnapshot(cpu: 90)
-
-        await engine.evaluate(snapshot1)
+        await engine.evaluate(createMockSnapshot(cpu: 50))
         try await Task.sleep(nanoseconds: 10_000_000)
-
-        await engine.evaluate(snapshot2)
+        await engine.evaluate(createMockSnapshot(cpu: 90))
 
         let history = await engine.getHistory()
         #expect(history.count >= 2)
@@ -125,10 +130,18 @@ struct AlertEngineTests {
 
     @Test("recentAlertCount filters by time window")
     func recentAlertCountFilters() async throws {
-        let engine = AlertEngine(defaults: defaults)
+        let rule = AlertRule(
+            id: UUID(),
+            metric: .cpu,
+            condition: .above,
+            threshold: 50,
+            cooldown: 0,
+            isEnabled: true,
+            label: "CPU High"
+        )
+        await engine.upsertRule(rule)
 
-        let snapshot = createMockSnapshot(cpu: 95)
-        await engine.evaluate(snapshot)
+        await engine.evaluate(createMockSnapshot(cpu: 95))
 
         let count30s = await engine.recentAlertCount(last: 30)
         let count1h = await engine.recentAlertCount(last: 3600)
@@ -145,9 +158,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "High CPU",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "High CPU"
         )
 
         await engine.upsertRule(rule)
@@ -156,7 +169,7 @@ struct AlertEngineTests {
         await engine.evaluate(highCPU)
 
         let history = await engine.getHistory()
-        #expect(history.contains { $0.message.contains("High CPU") })
+        #expect(history.contains { $0.ruleLabel.contains("High CPU") })
     }
 
     @Test("evaluate does not trigger alert when CPU below threshold")
@@ -166,9 +179,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "High CPU",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "High CPU"
         )
 
         await engine.upsertRule(rule)
@@ -177,7 +190,7 @@ struct AlertEngineTests {
         await engine.evaluate(lowCPU)
 
         let history = await engine.getHistory()
-        #expect(!history.contains { $0.message.contains("High CPU") })
+        #expect(!history.contains { $0.ruleLabel.contains("High CPU") })
     }
 
     @Test("evaluate respects cooldown period")
@@ -187,9 +200,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "High CPU",
-            enabled: true,
-            cooldownSeconds: 5
+            cooldown: 5,
+            isEnabled: true,
+            label: "High CPU"
         )
 
         await engine.upsertRule(rule)
@@ -198,11 +211,11 @@ struct AlertEngineTests {
 
         await engine.evaluate(highCPU)
         let history1 = await engine.getHistory()
-        let count1 = history1.filter { $0.message.contains("High CPU") }.count
+        let count1 = history1.filter { $0.ruleLabel.contains("High CPU") }.count
 
         await engine.evaluate(highCPU)
         let history2 = await engine.getHistory()
-        let count2 = history2.filter { $0.message.contains("High CPU") }.count
+        let count2 = history2.filter { $0.ruleLabel.contains("High CPU") }.count
 
         #expect(count1 == count2)
     }
@@ -214,9 +227,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "High CPU",
-            enabled: false,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: false,
+            label: "High CPU"
         )
 
         await engine.upsertRule(rule)
@@ -225,7 +238,7 @@ struct AlertEngineTests {
         await engine.evaluate(highCPU)
 
         let history = await engine.getHistory()
-        #expect(!history.contains { $0.message.contains("High CPU") })
+        #expect(!history.contains { $0.ruleLabel.contains("High CPU") })
     }
 
     @Test("evaluate triggers memory alert correctly")
@@ -235,9 +248,9 @@ struct AlertEngineTests {
             metric: .memory,
             condition: .above,
             threshold: 80,
-            label: "High Memory",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "High Memory"
         )
 
         await engine.upsertRule(rule)
@@ -246,7 +259,7 @@ struct AlertEngineTests {
         await engine.evaluate(highMemory)
 
         let history = await engine.getHistory()
-        #expect(history.contains { $0.message.contains("High Memory") })
+        #expect(history.contains { $0.ruleLabel.contains("High Memory") })
     }
 
     @Test("evaluate triggers alert for below threshold condition")
@@ -256,9 +269,9 @@ struct AlertEngineTests {
             metric: .battery,
             condition: .below,
             threshold: 20,
-            label: "Low Battery",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "Low Battery"
         )
 
         await engine.upsertRule(rule)
@@ -267,7 +280,7 @@ struct AlertEngineTests {
         await engine.evaluate(lowBattery)
 
         let history = await engine.getHistory()
-        #expect(history.contains { $0.message.contains("Low Battery") })
+        #expect(history.contains { $0.ruleLabel.contains("Low Battery") })
     }
 
     @Test("evaluate checks all enabled rules")
@@ -277,9 +290,9 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 80,
-            label: "High CPU",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "High CPU"
         )
 
         let memoryRule = AlertRule(
@@ -287,9 +300,9 @@ struct AlertEngineTests {
             metric: .memory,
             condition: .above,
             threshold: 75,
-            label: "High Memory",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "High Memory"
         )
 
         await engine.upsertRule(cpuRule)
@@ -299,8 +312,8 @@ struct AlertEngineTests {
         await engine.evaluate(snapshot)
 
         let history = await engine.getHistory()
-        let cpuAlerts = history.filter { $0.message.contains("High CPU") }
-        let memoryAlerts = history.filter { $0.message.contains("High Memory") }
+        let cpuAlerts = history.filter { $0.ruleLabel.contains("High CPU") }
+        let memoryAlerts = history.filter { $0.ruleLabel.contains("High Memory") }
 
         #expect(cpuAlerts.count > 0)
         #expect(memoryAlerts.count > 0)
@@ -314,14 +327,14 @@ struct AlertEngineTests {
             metric: .cpu,
             condition: .above,
             threshold: 85,
-            label: "CPU Warning",
-            enabled: true,
-            cooldownSeconds: 120
+            cooldown: 120,
+            isEnabled: true,
+            label: "CPU Warning"
         )
 
         await engine.upsertRule(rule)
 
-        let newEngine = AlertEngine(defaults: defaults)
+        let newEngine = AlertEngine(defaults: defaults, seedDefaultRules: false)
         let rules = await newEngine.getRules()
 
         #expect(rules.count == 1)
@@ -336,44 +349,40 @@ struct AlertEngineTests {
         memoryPercent: Double = 50,
         batteryPercent: Double = 80
     ) -> SystemSnapshot {
-        SystemSnapshot(
+        let totalBytes: UInt64 = 16_000_000_000
+        return SystemSnapshot(
+            timestamp: Date(),
             cpu: CPUMetrics(usagePercent: cpu, coreCount: 8, temperatureCelsius: nil),
-            ram: RAMMetrics(usedPercent: memoryPercent, usedBytes: 0, totalBytes: 0),
-            battery: BatteryMetrics(levelPercent: batteryPercent, isCharging: false, health: 100),
-            network: NetworkMetrics(bytesInPerSecond: 0, bytesOutPerSecond: 0),
-            gpu: GPUMetrics(usagePercent: 10),
-            cpuSnapshot: CPUSnapshot(
-                timestamp: Date(),
-                perCoreUsage: [],
-                overallLoad: Float(cpu) / 100,
-                loadAverage: LoadAverage(one: 1.0, five: 1.0, fifteen: 1.0)
-            ),
-            memorySnapshot: MemorySnapshot(
-                timestamp: Date(),
-                totalBytes: 16_000_000_000,
-                usedBytes: UInt64(Double(16_000_000_000) * memoryPercent / 100),
-                wiredBytes: 0,
-                appBytes: 0,
-                compressedBytes: 0,
-                cachedBytes: 0,
-                freeBytes: 0,
-                swapUsedBytes: 0,
-                swapTotalBytes: 0,
-                pressure: .normal
-            ),
+            cpuSnapshot: nil,
+            ram: RAMMetrics(usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100), totalBytes: totalBytes),
+            memorySnapshot: nil,
+            battery: BatteryMetrics(levelPercent: batteryPercent, isCharging: false, cycleCount: 100),
             batterySnapshot: BatterySnapshot(
                 timestamp: Date(),
-                levelPercent: Int(batteryPercent),
-                isCharging: false,
-                timeRemaining: 3600,
+                currentCapacitymAh: 5000,
+                designCapacitymAh: 6000,
+                healthPercent: 90,
                 cycleCount: 100,
-                health: 90,
-                condition: .good
+                chargeState: .discharging,
+                chargePercent: batteryPercent,
+                timeToEmptyMinutes: 120,
+                timeToFullMinutes: nil,
+                voltageMillivolts: 12_000,
+                amperageMilliamps: -1000,
+                watts: 12,
+                temperatureCelsius: 30,
+                temperatureFahrenheit: 86,
+                serialNumber: "TEST",
+                chargeHistory24h: [],
+                healthHistory: []
             ),
+            network: NetworkMetrics(bytesInPerSecond: 0, bytesOutPerSecond: 0, primaryInterface: "en0"),
             networkSnapshot: nil,
+            gpu: GPUMetrics(usagePercent: 10, temperatureCelsius: nil),
             gpuSnapshot: nil,
-            thermalSnapshot: nil,
-            timestamp: Date()
+            disk: .empty,
+            diskSnapshot: nil,
+            thermalSnapshot: nil
         )
     }
 }

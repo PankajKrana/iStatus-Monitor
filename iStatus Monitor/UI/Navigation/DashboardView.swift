@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 struct DashboardView: View {
     @Bindable var appState: AppState
@@ -7,6 +8,8 @@ struct DashboardView: View {
     let onNavigate: (NavigationTab) -> Void
 
     @State private var systemInfo: SystemInfo = .empty
+    @State private var thermalFallbackHistory: [Double] = []
+    private let thermalTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
 
     private let columns: [GridItem] = [
         GridItem(.flexible(), spacing: 16),
@@ -28,8 +31,8 @@ struct DashboardView: View {
                         sparkline: appState.cpuHistory.map { Double($0.overallLoad) * 100 },
                         status: cpuStatus,
                         miniStats: [
-                            ("Threads", String(appState.cpu.coreCount) + " cores"),
-                            ("Freq", "3.2 GHz")
+                            ("Cores", String(appState.cpu.coreCount) + " cores"),
+                            ("Temp", appState.cpu.temperatureCelsius.map { String(format: "%.0f°C", $0) } ?? "--")
                         ]
                     ) {
                         onNavigate(.cpu)
@@ -44,8 +47,8 @@ struct DashboardView: View {
                         sparkline: [appState.gpuSnapshot?.gpus.first?.utilizationPercent].compactMap { $0 },
                         status: gpuStatus,
                         miniStats: [
-                            ("Device", "Integrated"),
-                            ("Mem", "1.2 GB / 4.0 GB")
+                            ("Device", gpuDeviceLabel),
+                            ("VRAM", gpuMemoryLabel)
                         ]
                     ) {
                         onNavigate(.gpu)
@@ -70,17 +73,19 @@ struct DashboardView: View {
                     // Disk Card
                     dashboardCard(
                         title: "Disk",
-                        metric: "-- %",
+                        metric: appState.diskSnapshot?.primaryVolume.map { String(format: "%.0f%%", $0.usedPercent) } ?? "--%",
                         icon: "internaldrive.fill",
                         tint: AppTheme.diskColor,
-                        sparkline: [50, 45, 48, 52, 50],
-                        status: .normal,
+                        sparkline: appState.diskSnapshot?.history60s.map {
+                            Double($0.readBytesPerSecond + $0.writeBytesPerSecond) / 1024
+                        } ?? [],
+                        status: diskStatus,
                         miniStats: [
-                            ("Speed", "-- MB/s"),
-                            ("Used", "-- GB / -- GB")
+                            ("I/O", "↓\(formatBytes(appState.disk.readBytesPerSecond)) ↑\(formatBytes(appState.disk.writeBytesPerSecond))"),
+                            ("Used", appState.diskSnapshot?.primaryVolume.map { "\($0.usedString) / \($0.totalString)" } ?? "--")
                         ]
                     ) {
-                        // Placeholder for disk navigation
+                        onNavigate(.disk)
                     }
 
                     // Network Card
@@ -115,7 +120,7 @@ struct DashboardView: View {
                         status: batteryStatus,
                         miniStats: [
                             ("Health", appState.batterySnapshot.map { String(format: "%.0f%%", $0.healthPercent) } ?? "--"),
-                            ("Time", "-- h remaining")
+                            ("Time", batteryTimeLabel)
                         ]
                     ) {
                         onNavigate(.battery)
@@ -124,10 +129,12 @@ struct DashboardView: View {
                     // Temperature Card
                     dashboardCard(
                         title: "Thermal",
-                        metric: appState.thermalSnapshot.map { String(format: "%.0f°C", hottestTemp(in: $0)) } ?? "--",
+                        metric: appState.thermalSnapshot.map {
+                            "\(hottestTemp(in: $0).formatted(.number.precision(.fractionLength(0))))°C"
+                        } ?? thermalStateText,
                         icon: "thermometer.sun.fill",
                         tint: AppTheme.temperatureColor,
-                        sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? [],
+                        sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? thermalFallbackHistory,
                         status: thermalStatus,
                         miniStats: [
                             (
@@ -172,6 +179,20 @@ struct DashboardView: View {
                 }
             }
             .padding(16)
+        }
+        .onReceive(thermalTimer) { _ in
+            // Only maintain fallback history if no numeric snapshot is available
+            guard appState.thermalSnapshot == nil else { return }
+            let value: Double
+            switch ProcessInfo.processInfo.thermalState {
+            case .nominal: value = 0
+            case .fair:    value = 1
+            case .serious: value = 2
+            case .critical:value = 3
+            @unknown default: value = 0
+            }
+            thermalFallbackHistory.append(value)
+            if thermalFallbackHistory.count > 60 { thermalFallbackHistory.removeFirst(thermalFallbackHistory.count - 60) }
         }
         .onAppear {
             systemInfo = .current()
@@ -281,19 +302,81 @@ struct DashboardView: View {
         return .normal
     }
 
-    private var thermalStatus: StatusBadge.Status {
-        guard let thermal = appState.thermalSnapshot else { return .normal }
-        let hot = hottestTemp(in: thermal)
-        if hot >= 90 { return .critical }
-        if hot >= 80 { return .warning }
+    private var gpuDeviceLabel: String {
+        guard let gpu = appState.gpuSnapshot?.gpus.first else { return "--" }
+        return gpu.isIntegrated ? "Integrated" : "Discrete"
+    }
+
+    private var gpuMemoryLabel: String {
+        guard let gpu = appState.gpuSnapshot?.gpus.first, let total = gpu.vramTotalMB else { return "--" }
+        if let used = gpu.vramUsedMB {
+            return "\(formatMB(used)) / \(formatMB(total))"
+        }
+        return formatMB(total)
+    }
+
+    private var diskStatus: StatusBadge.Status {
+        guard let used = appState.diskSnapshot?.primaryVolume?.usedPercent else { return .normal }
+        if used >= 90 { return .critical }
+        if used >= 75 { return .warning }
         return .normal
     }
 
+    private var batteryTimeLabel: String {
+        guard let snapshot = appState.batterySnapshot else { return "--" }
+        switch snapshot.chargeState {
+        case .charging:
+            return snapshot.timeToFullMinutes.map { formatMinutes($0) + " to full" } ?? "Charging"
+        case .discharging:
+            return snapshot.timeToEmptyMinutes.map { formatMinutes($0) + " left" } ?? "On battery"
+        case .full, .ac:
+            return "On AC"
+        case .unknown:
+            return "--"
+        }
+    }
+
+
     private var batteryStatus: StatusBadge.Status {
-        guard let battery = appState.batterySnapshot else { return .normal }
-        if battery.chargePercent <= 10 { return .critical }
-        if battery.chargePercent <= 20 { return .warning }
+        guard let snapshot = appState.batterySnapshot else {
+            // If we can't read the battery, assume normal to avoid noisy warnings on desktops
+            return .normal
+        }
+        // Prioritize critical states: very low charge or very poor health
+        if snapshot.chargePercent <= 10 || snapshot.healthPercent <= 60 { return .critical }
+        // Warning for low charge or degraded health
+        if snapshot.chargePercent <= 20 || snapshot.healthPercent <= 80 { return .warning }
         return .normal
+    }
+
+
+    private var thermalStatus: StatusBadge.Status {
+        if let thermal = appState.thermalSnapshot {
+            let hot = hottestTemp(in: thermal)
+            if hot >= 90 { return .critical }
+            if hot >= 80 { return .warning }
+            return .normal
+        } else {
+            switch ProcessInfo.processInfo.thermalState {
+            case .critical: return .critical
+            case .serious:  return .warning
+            case .fair:     return .warning
+            case .nominal:  return .normal
+            @unknown default: return .normal
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var thermalStateText: String {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal: return "Nominal"
+        case .fair:    return "Fair"
+        case .serious: return "Serious"
+        case .critical:return "Critical"
+        @unknown default: return "Unknown"
+        }
     }
 
     private func hottestTemp(in snapshot: ThermalSnapshot) -> Double {
@@ -302,6 +385,18 @@ struct DashboardView: View {
 
     private func formatBytes(_ bytes: UInt64) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .binary)
+    }
+
+    private func formatMB(_ megabytes: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(megabytes) * 1_048_576, countStyle: .file)
+    }
+
+    private func formatMinutes(_ minutes: Int) -> String {
+        guard minutes > 0 else { return "--" }
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if hours > 0 { return "\(hours)h \(mins)m" }
+        return "\(mins)m"
     }
 
     private func formatUptime() -> String {

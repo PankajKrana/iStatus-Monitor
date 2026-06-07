@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import iStatus_Monitor
 
+@MainActor
 struct SystemMonitorServiceTests {
     @Test("service initializes successfully")
     func serviceInitialization() {
@@ -29,16 +30,16 @@ struct SystemMonitorServiceTests {
     @Test("start updates appState monitoring flag")
     func startUpdatesMonitoringFlag() async throws {
         let service = SystemMonitorService()
-        let appState = AppState()
+        let appState = await AppState()
 
         #expect(!appState.isMonitoring)
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
         try await Task.sleep(nanoseconds: 10_000_000)
 
         #expect(appState.isMonitoring)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("stop cancels monitoring")
@@ -46,10 +47,10 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
         try await Task.sleep(nanoseconds: 20_000_000)
 
-        service.stop()
+        await service.stop()
         try await Task.sleep(nanoseconds: 50_000_000)
 
         #expect(true)
@@ -60,15 +61,15 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(100))
+        await service.start(appState: appState, interval: .milliseconds(100))
         try await Task.sleep(nanoseconds: 20_000_000)
 
         // Second start should be ignored (guard loopTask == nil)
-        service.start(appState: appState, interval: .milliseconds(100))
+        await service.start(appState: appState, interval: .milliseconds(100))
 
         try await Task.sleep(nanoseconds: 50_000_000)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("monitor samples metrics")
@@ -76,13 +77,13 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         try await Task.sleep(nanoseconds: 150_000_000)
 
         #expect(appState.cpu.coreCount > 0)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("pause stops sampling")
@@ -90,7 +91,7 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
         try await Task.sleep(nanoseconds: 100_000_000)
 
         appState.isMonitoringPaused = true
@@ -99,7 +100,7 @@ struct SystemMonitorServiceTests {
         #expect(appState.isMonitoring)
 
         appState.isMonitoringPaused = false
-        service.stop()
+        await service.stop()
     }
 
     @Test("resume resumes sampling after pause")
@@ -107,7 +108,7 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
         try await Task.sleep(nanoseconds: 100_000_000)
 
         appState.isMonitoringPaused = true
@@ -118,7 +119,7 @@ struct SystemMonitorServiceTests {
 
         #expect(appState.isMonitoring)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("monitor maintains CPU history")
@@ -126,13 +127,13 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         try await Task.sleep(nanoseconds: 300_000_000)
 
         #expect(appState.cpuHistory.count >= 0)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("monitor evaluates alerts")
@@ -146,14 +147,14 @@ struct SystemMonitorServiceTests {
             metric: .cpu,
             condition: .above,
             threshold: 1.0,
-            label: "Test Alert",
-            enabled: true,
-            cooldownSeconds: 0.5
+            cooldown: 0.5,
+            isEnabled: true,
+            label: "Test Alert"
         )
 
         await alertEngine.upsertRule(rule)
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         try await Task.sleep(nanoseconds: 200_000_000)
 
@@ -161,7 +162,7 @@ struct SystemMonitorServiceTests {
 
         #expect(history.count >= 0)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("service persists data")
@@ -170,13 +171,13 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService(dataStore: dataStore)
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         try await Task.sleep(nanoseconds: 200_000_000)
 
         #expect(true)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("service respects sampling interval")
@@ -185,7 +186,7 @@ struct SystemMonitorServiceTests {
         let appState = AppState()
 
         let startTime = Date()
-        service.start(appState: appState, interval: .milliseconds(100))
+        await service.start(appState: appState, interval: .milliseconds(100))
 
         try await Task.sleep(nanoseconds: 250_000_000)
 
@@ -193,7 +194,7 @@ struct SystemMonitorServiceTests {
 
         #expect(elapsed >= 0.25)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("service continues on monitor errors")
@@ -201,13 +202,13 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         try await Task.sleep(nanoseconds: 200_000_000)
 
         #expect(appState.isMonitoring)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("appState updates happen on mainActor")
@@ -215,7 +216,7 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         try await Task.sleep(nanoseconds: 150_000_000)
 
@@ -225,7 +226,7 @@ struct SystemMonitorServiceTests {
         #expect(cpuUsage >= 0)
         #expect(memUsage >= 0)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("stop cancels loop properly")
@@ -233,10 +234,10 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
         try await Task.sleep(nanoseconds: 100_000_000)
 
-        service.stop()
+        await service.stop()
 
         try await Task.sleep(nanoseconds: 100_000_000)
 
@@ -254,14 +255,14 @@ struct SystemMonitorServiceTests {
             metric: .memory,
             condition: .above,
             threshold: 99.0,
-            label: "Memory Test",
-            enabled: true,
-            cooldownSeconds: 1
+            cooldown: 1,
+            isEnabled: true,
+            label: "Memory Test"
         )
 
         await alertEngine.upsertRule(rule)
 
-        service.start(appState: appState, interval: .milliseconds(50))
+        await service.start(appState: appState, interval: .milliseconds(50))
 
         appState.isMonitoringPaused = true
         try await Task.sleep(nanoseconds: 50_000_000)
@@ -276,7 +277,7 @@ struct SystemMonitorServiceTests {
 
         #expect(rules.count > 0)
 
-        service.stop()
+        await service.stop()
 
         try await Task.sleep(nanoseconds: 50_000_000)
         #expect(!appState.isMonitoring)
@@ -288,7 +289,7 @@ struct SystemMonitorServiceTests {
         let appState = AppState()
 
         let startTime = Date()
-        service.start(appState: appState, interval: .seconds(1))
+        await service.start(appState: appState, interval: .seconds(1))
 
         try await Task.sleep(nanoseconds: 3_500_000_000)
 
@@ -297,7 +298,7 @@ struct SystemMonitorServiceTests {
         #expect(elapsed >= 3.0)
         #expect(elapsed < 5.0)
 
-        service.stop()
+        await service.stop()
     }
 
     @Test("handles rapid start stop cycles")
@@ -306,9 +307,9 @@ struct SystemMonitorServiceTests {
         let appState = AppState()
 
         for _ in 0..<3 {
-            service.start(appState: appState, interval: .milliseconds(50))
+            await service.start(appState: appState, interval: .milliseconds(50))
             try await Task.sleep(nanoseconds: 50_000_000)
-            service.stop()
+            await service.stop()
             try await Task.sleep(nanoseconds: 50_000_000)
         }
 

@@ -149,6 +149,53 @@ struct NetworkSnapshot: Codable, Sendable, Equatable {
     let history60s: [ThroughputPoint]
 }
 
+struct DiskVolume: Codable, Sendable, Equatable, Identifiable {
+    let name: String
+    let mountPoint: String
+    let totalBytes: UInt64
+    let freeBytes: UInt64
+    let isRemovable: Bool
+    let isInternal: Bool
+
+    var id: String { mountPoint }
+
+    var usedBytes: UInt64 { totalBytes > freeBytes ? totalBytes - freeBytes : 0 }
+
+    var usedRatio: Double {
+        guard totalBytes > 0 else { return 0 }
+        return min(1, max(0, Double(usedBytes) / Double(totalBytes)))
+    }
+
+    var usedPercent: Double { usedRatio * 100 }
+
+    var totalString: String { ByteCountFormatter.string(fromByteCount: Int64(totalBytes), countStyle: .file) }
+    var usedString: String { ByteCountFormatter.string(fromByteCount: Int64(usedBytes), countStyle: .file) }
+    var freeString: String { ByteCountFormatter.string(fromByteCount: Int64(freeBytes), countStyle: .file) }
+}
+
+struct DiskActivityPoint: Codable, Sendable, Equatable, Identifiable {
+    let timestamp: Date
+    let readBytesPerSecond: UInt64
+    let writeBytesPerSecond: UInt64
+
+    var id: Date { timestamp }
+}
+
+struct DiskSnapshot: Codable, Sendable, Equatable {
+    let timestamp: Date
+    let volumes: [DiskVolume]
+    let readBytesPerSecond: UInt64
+    let writeBytesPerSecond: UInt64
+    let history60s: [DiskActivityPoint]
+
+    /// The boot/root volume, falling back to the largest internal volume, then any volume.
+    var primaryVolume: DiskVolume? {
+        volumes.first(where: { $0.mountPoint == "/" })
+            ?? volumes.filter { $0.isInternal && !$0.isRemovable }.max(by: { $0.totalBytes < $1.totalBytes })
+            ?? volumes.first
+    }
+}
+
 struct GPUStats: Codable, Sendable, Equatable, Identifiable {
     let id: String
     let name: String
@@ -289,6 +336,16 @@ struct GPUMetrics: Codable, Sendable {
     static let empty = GPUMetrics(usagePercent: 0, temperatureCelsius: nil)
 }
 
+struct DiskMetrics: Codable, Sendable {
+    var usedPercent: Double
+    var usedBytes: UInt64
+    var totalBytes: UInt64
+    var readBytesPerSecond: UInt64
+    var writeBytesPerSecond: UInt64
+
+    static let empty = DiskMetrics(usedPercent: 0, usedBytes: 0, totalBytes: 0, readBytesPerSecond: 0, writeBytesPerSecond: 0)
+}
+
 struct SystemSnapshot: Codable, Sendable {
     var timestamp: Date
     var cpu: CPUMetrics
@@ -301,5 +358,7 @@ struct SystemSnapshot: Codable, Sendable {
     var networkSnapshot: NetworkSnapshot?
     var gpu: GPUMetrics
     var gpuSnapshot: GPUSnapshot?
+    var disk: DiskMetrics
+    var diskSnapshot: DiskSnapshot?
     var thermalSnapshot: ThermalSnapshot?
 }

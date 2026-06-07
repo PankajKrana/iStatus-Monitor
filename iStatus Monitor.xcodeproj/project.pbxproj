@@ -10,13 +10,28 @@
 		D4B1FB6D2FC6FAC8002DE4D3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = D4B1FB6C2FC6FAC8002DE4D3 /* README.md */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		D4B1F2352FD57CDC006C1DF5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D4D9CCE72FC6F5BC002B1156 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D4D9CCEE2FC6F5BC002B1156;
+			remoteInfo = "iStatus Monitor";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		D4B1F2312FD57CDC006C1DF5 /* iStatus MonitorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "iStatus MonitorTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4B1FB6C2FC6FAC8002DE4D3 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		D4B1FB712FC6FC32002DE4D3 /* CPUMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitorTests.swift; sourceTree = "<group>"; };
 		D4D9CCEF2FC6F5BC002B1156 /* iStatus Monitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "iStatus Monitor.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		D4B1F2322FD57CDC006C1DF5 /* iStatus MonitorTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "iStatus MonitorTests";
+			sourceTree = "<group>";
+		};
 		D4D9CCF12FC6F5BC002B1156 /* iStatus Monitor */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "iStatus Monitor";
@@ -25,6 +40,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		D4B1F22E2FD57CDC006C1DF5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D4D9CCEC2FC6F5BC002B1156 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -35,21 +57,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		D4B1FB702FC6FC24002DE4D3 /* iStatus MonitorTests */ = {
-			isa = PBXGroup;
-			children = (
-				D4B1FB712FC6FC32002DE4D3 /* CPUMonitorTests.swift */,
-			);
-			path = "iStatus MonitorTests";
-			sourceTree = "<group>";
-		};
 		D4D9CCE62FC6F5BC002B1156 = {
 			isa = PBXGroup;
 			children = (
 				D4D9CCF12FC6F5BC002B1156 /* iStatus Monitor */,
+				D4B1F2322FD57CDC006C1DF5 /* iStatus MonitorTests */,
 				D4D9CCF02FC6F5BC002B1156 /* Products */,
 				D4B1FB6C2FC6FAC8002DE4D3 /* README.md */,
-				D4B1FB702FC6FC24002DE4D3 /* iStatus MonitorTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -57,6 +71,7 @@
 			isa = PBXGroup;
 			children = (
 				D4D9CCEF2FC6F5BC002B1156 /* iStatus Monitor.app */,
+				D4B1F2312FD57CDC006C1DF5 /* iStatus MonitorTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -64,6 +79,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		D4B1F2302FD57CDC006C1DF5 /* iStatus MonitorTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D4B1F2372FD57CDC006C1DF5 /* Build configuration list for PBXNativeTarget "iStatus MonitorTests" */;
+			buildPhases = (
+				D4B1F22D2FD57CDC006C1DF5 /* Sources */,
+				D4B1F22E2FD57CDC006C1DF5 /* Frameworks */,
+				D4B1F22F2FD57CDC006C1DF5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D4B1F2362FD57CDC006C1DF5 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D4B1F2322FD57CDC006C1DF5 /* iStatus MonitorTests */,
+			);
+			name = "iStatus MonitorTests";
+			packageProductDependencies = (
+			);
+			productName = "iStatus MonitorTests";
+			productReference = D4B1F2312FD57CDC006C1DF5 /* iStatus MonitorTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		D4D9CCEE2FC6F5BC002B1156 /* iStatus Monitor */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D4D9CCFA2FC6F5BE002B1156 /* Build configuration list for PBXNativeTarget "iStatus Monitor" */;
@@ -96,6 +134,10 @@
 				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					D4B1F2302FD57CDC006C1DF5 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = D4D9CCEE2FC6F5BC002B1156;
+					};
 					D4D9CCEE2FC6F5BC002B1156 = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -116,11 +158,19 @@
 			projectRoot = "";
 			targets = (
 				D4D9CCEE2FC6F5BC002B1156 /* iStatus Monitor */,
+				D4B1F2302FD57CDC006C1DF5 /* iStatus MonitorTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		D4B1F22F2FD57CDC006C1DF5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D4D9CCED2FC6F5BC002B1156 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -132,6 +182,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		D4B1F22D2FD57CDC006C1DF5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D4D9CCEB2FC6F5BC002B1156 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -141,7 +198,55 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		D4B1F2362FD57CDC006C1DF5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D4D9CCEE2FC6F5BC002B1156 /* iStatus Monitor */;
+			targetProxy = D4B1F2352FD57CDC006C1DF5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		D4B1F2382FD57CDC006C1DF5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FGA8RZ8PM2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "pankajkumarrana.iStatus-MonitorTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iStatus Monitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/iStatus Monitor";
+			};
+			name = Debug;
+		};
+		D4B1F2392FD57CDC006C1DF5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FGA8RZ8PM2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "pankajkumarrana.iStatus-MonitorTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iStatus Monitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/iStatus Monitor";
+			};
+			name = Release;
+		};
 		D4D9CCF82FC6F5BE002B1156 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -329,6 +434,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		D4B1F2372FD57CDC006C1DF5 /* Build configuration list for PBXNativeTarget "iStatus MonitorTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D4B1F2382FD57CDC006C1DF5 /* Debug */,
+				D4B1F2392FD57CDC006C1DF5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		D4D9CCEA2FC6F5BC002B1156 /* Build configuration list for PBXProject "iStatus Monitor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
