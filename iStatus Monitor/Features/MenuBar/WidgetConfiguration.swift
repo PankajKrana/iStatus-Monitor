@@ -37,6 +37,40 @@ enum MenuBarLayout: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+// MARK: - Menu Bar Presentation Mode
+
+/// How the enabled widgets are surfaced in the system menu bar.
+///
+/// - `compact`: a single `MenuBarExtra` whose label is the combined string
+///   (`CPU 15% RAM 70%`) with one shared popover — the original architecture.
+/// - `module`:  one independent `MenuBarExtra` per enabled widget, each with its
+///   own label and its own popover (Stats.app-style).
+///
+/// This is purely a *presentation* choice; it never changes which widgets are
+/// enabled. Persisted by `WidgetConfigurationStore` alongside `layout`.
+enum MenuBarPresentationMode: String, Codable, CaseIterable, Identifiable, Sendable {
+    case compact
+    case module
+
+    var id: String { rawValue }
+
+    static let `default`: MenuBarPresentationMode = .compact
+
+    var displayName: String {
+        switch self {
+        case .compact: "Compact"
+        case .module: "Module"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .compact: "One menu bar item with a combined label"
+        case .module: "A separate menu bar item per enabled widget"
+        }
+    }
+}
+
 // MARK: - Widget Display Style
 
 /// Per-widget rendering format for its own segment of the menu bar string.
@@ -117,6 +151,15 @@ final class WidgetConfigurationStore {
         }
     }
 
+    /// Compact (single combined item) vs. Module (one item per widget).
+    /// Presentation only — does not affect which widgets are enabled. Persisted.
+    var presentationMode: MenuBarPresentationMode {
+        didSet {
+            guard presentationMode != oldValue else { return }
+            defaults.set(presentationMode.rawValue, forKey: Keys.presentationMode)
+        }
+    }
+
     private let defaults: UserDefaults
 
     /// Seed used on first launch and by `restoreDefaults()`. Provided by the
@@ -141,6 +184,13 @@ final class WidgetConfigurationStore {
             layout = parsed
         } else {
             layout = .default
+        }
+
+        if let rawMode = defaults.string(forKey: Keys.presentationMode),
+           let parsedMode = MenuBarPresentationMode(rawValue: rawMode) {
+            presentationMode = parsedMode
+        } else {
+            presentationMode = .default
         }
     }
 
@@ -188,6 +238,7 @@ final class WidgetConfigurationStore {
     func restoreDefaults() {
         configurations = defaultConfigurations
         layout = .default
+        presentationMode = .default
         persist()
     }
 
@@ -244,5 +295,6 @@ final class WidgetConfigurationStore {
     private enum Keys {
         static let configurations = "menuBar.widgetConfigurations"
         static let layout = "menuBar.layout"
+        static let presentationMode = "menuBar.presentationMode"
     }
 }
