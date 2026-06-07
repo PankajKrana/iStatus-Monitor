@@ -17,14 +17,14 @@ actor AlertEngine {
     private var lastFired: [UUID: Date]
     private var cpuAboveDuration: TimeInterval = 0
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, seedDefaultRules: Bool = true) {
         self.defaults = defaults
 
         if let data = defaults.data(forKey: rulesKey),
            let decoded = try? decoder.decode([AlertRule].self, from: data) {
             rules = decoded
         } else {
-            rules = AlertRule.defaultRules()
+            rules = seedDefaultRules ? AlertRule.defaultRules() : []
         }
 
         if let data = defaults.data(forKey: historyKey),

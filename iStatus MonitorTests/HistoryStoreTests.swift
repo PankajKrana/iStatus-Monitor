@@ -11,7 +11,7 @@ struct HistoryStoreTests {
         let schema = Schema([MetricRecord.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         modelContainer = try ModelContainer(for: schema, configurations: [config])
-        store = HistoryStore(container: modelContainer)
+        store = HistoryStore(container: modelContainer, persistInterval: 0)
     }
 
     @Test("ingest persists metric records")
@@ -169,22 +169,22 @@ struct HistoryStoreTests {
         networkKBps: Double = 100,
         temperatureCelsius: Double = 45
     ) -> SystemSnapshot {
-        SystemSnapshot(
+        let totalBytes: UInt64 = 16_000_000_000
+        let networkBytes = UInt64(networkKBps * 1024)
+        return SystemSnapshot(
+            timestamp: Date(),
             cpu: CPUMetrics(usagePercent: cpu, coreCount: 8, temperatureCelsius: temperatureCelsius),
-            ram: RAMMetrics(usedPercent: memoryPercent, usedBytes: 0, totalBytes: 0),
-            battery: BatteryMetrics(levelPercent: batteryPercent, isCharging: false, health: 100),
-            network: NetworkMetrics(bytesInPerSecond: UInt64(networkKBps * 1024), bytesOutPerSecond: UInt64(networkKBps * 1024)),
-            gpu: GPUMetrics(usagePercent: 10),
             cpuSnapshot: CPUSnapshot(
                 timestamp: Date(),
                 perCoreUsage: [],
                 overallLoad: Float(cpu) / 100,
                 loadAverage: LoadAverage(one: 1.0, five: 1.0, fifteen: 1.0)
             ),
+            ram: RAMMetrics(usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100), totalBytes: totalBytes),
             memorySnapshot: MemorySnapshot(
                 timestamp: Date(),
-                totalBytes: 16_000_000_000,
-                usedBytes: UInt64(Double(16_000_000_000) * memoryPercent / 100),
+                totalBytes: totalBytes,
+                usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100),
                 wiredBytes: 0,
                 appBytes: 0,
                 compressedBytes: 0,
@@ -194,25 +194,28 @@ struct HistoryStoreTests {
                 swapTotalBytes: 0,
                 pressure: .normal
             ),
-            batterySnapshot: BatterySnapshot(
-                timestamp: Date(),
-                levelPercent: Int(batteryPercent),
-                isCharging: false,
-                timeRemaining: 3600,
-                cycleCount: 100,
-                health: 90,
-                condition: .good
-            ),
+            battery: BatteryMetrics(levelPercent: batteryPercent, isCharging: false, cycleCount: 100),
+            batterySnapshot: nil,
+            network: NetworkMetrics(bytesInPerSecond: networkBytes, bytesOutPerSecond: networkBytes, primaryInterface: "en0"),
             networkSnapshot: nil,
+            gpu: GPUMetrics(usagePercent: 10, temperatureCelsius: nil),
             gpuSnapshot: nil,
+            disk: .empty,
+            diskSnapshot: nil,
             thermalSnapshot: ThermalSnapshot(
                 timestamp: Date(),
+                fans: [],
                 sensors: [
-                    ThermalSensor(name: "CPU", celsius: temperatureCelsius),
-                    ThermalSensor(name: "GPU", celsius: temperatureCelsius - 5)
-                ]
-            ),
-            timestamp: Date()
+                    ThermalSensor(
+                        key: "TC0P",
+                        name: "CPU",
+                        celsius: temperatureCelsius,
+                        fahrenheit: temperatureCelsius * 9 / 5 + 32,
+                        zone: .cpu
+                    )
+                ],
+                thermalState: .nominal
+            )
         )
     }
 }

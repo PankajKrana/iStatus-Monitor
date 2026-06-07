@@ -1,12 +1,15 @@
 import Charts
+import Darwin
 import SwiftUI
 
 struct CPUView: View {
     let snapshot: CPUSnapshot
+    let temperatureCelsius: Double?
     let searchText: String
 
-    init(snapshot: CPUSnapshot, searchText: String = "") {
+    init(snapshot: CPUSnapshot, temperatureCelsius: Double? = nil, searchText: String = "") {
         self.snapshot = snapshot
+        self.temperatureCelsius = temperatureCelsius
         self.searchText = searchText
     }
 
@@ -25,6 +28,27 @@ struct CPUView: View {
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: 64), spacing: 10)]
     }
+
+    /// Number of cores currently doing meaningful work (>5% active).
+    private var activeCoreCount: Int {
+        snapshot.perCoreUsage.filter { $0.active > 0.05 }.count
+    }
+
+    /// "8 physical · 16 logical" using sysctl, falling back to logical count only.
+    private var coreSummary: String {
+        let logical = snapshot.perCoreUsage.count
+        if let physical = Self.physicalCoreCount, physical > 0, physical != logical {
+            return "\(physical)P · \(logical)L"
+        }
+        return "\(logical) cores"
+    }
+
+    private static let physicalCoreCount: Int? = {
+        var count: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname("hw.physicalcpu", &count, &size, nil, 0) == 0 else { return nil }
+        return Int(count)
+    }()
 
     var body: some View {
         ScrollView {
@@ -54,22 +78,22 @@ struct CPUView: View {
                                     value: String(format: "%.2f, %.2f, %.2f", snapshot.loadAverage.one, snapshot.loadAverage.five, snapshot.loadAverage.fifteen),
                                     tint: AppTheme.cpuColor
                                 )
-                                
+
                                 MetricRowView(
-                                    title: "Frequency",
-                                    value: "3.2 GHz",
+                                    title: "Cores",
+                                    value: coreSummary,
                                     tint: AppTheme.cpuColor
                                 )
-                                
+
+                                MetricRowView(
+                                    title: "Active Cores",
+                                    value: "\(activeCoreCount) of \(snapshot.perCoreUsage.count)",
+                                    tint: AppTheme.cpuColor
+                                )
+
                                 MetricRowView(
                                     title: "Temperature",
-                                    value: "72°C",
-                                    tint: AppTheme.cpuColor
-                                )
-                                
-                                MetricRowView(
-                                    title: "Power",
-                                    value: "45W",
+                                    value: temperatureCelsius.map { String(format: "%.0f°C", $0) } ?? "—",
                                     tint: AppTheme.cpuColor
                                 )
                             }

@@ -7,6 +7,7 @@ actor SystemMonitorService {
     private let networkMonitor: NetworkMonitor
     private let gpuMonitor: GPUMonitor
     private let thermalMonitor: ThermalMonitor
+    private let diskMonitor: DiskMonitor
     private let dataStore: DataStore
     private let alertEngine: AlertEngine
     private let batteryAlertService: BatteryAlertService
@@ -21,6 +22,7 @@ actor SystemMonitorService {
         networkMonitor: NetworkMonitor = NetworkMonitor(),
         gpuMonitor: GPUMonitor = GPUMonitor(),
         thermalMonitor: ThermalMonitor = ThermalMonitor(),
+        diskMonitor: DiskMonitor = DiskMonitor(),
         dataStore: DataStore = DataStore(),
         alertEngine: AlertEngine = AlertEngine(),
         batteryAlertService: BatteryAlertService = BatteryAlertService(),
@@ -32,6 +34,7 @@ actor SystemMonitorService {
         self.networkMonitor = networkMonitor
         self.gpuMonitor = gpuMonitor
         self.thermalMonitor = thermalMonitor
+        self.diskMonitor = diskMonitor
         self.dataStore = dataStore
         self.alertEngine = alertEngine
         self.batteryAlertService = batteryAlertService
@@ -94,6 +97,7 @@ actor SystemMonitorService {
         async let networkSnapshot = networkMonitor.latestSnapshot()
         async let gpuSnapshot = gpuMonitor.latestSnapshot()
         async let thermalSnapshot = thermalMonitor.latestSnapshot()
+        async let diskSnapshot = diskMonitor.latestSnapshot()
 
         let resolvedCPUSnapshot = await cpuSnapshot
         let resolvedMemorySnapshot = await memorySnapshot
@@ -101,6 +105,7 @@ actor SystemMonitorService {
         let resolvedNetworkSnapshot = await networkSnapshot
         let resolvedGPUSnapshot = await gpuSnapshot
         let resolvedThermalSnapshot = await thermalSnapshot
+        let resolvedDiskSnapshot = await diskSnapshot
 
         let cpu: CPUMetrics
         if let resolvedCPUSnapshot {
@@ -151,6 +156,20 @@ actor SystemMonitorService {
             gpu = .empty
         }
 
+        let disk: DiskMetrics
+        if let resolvedDiskSnapshot {
+            let primary = resolvedDiskSnapshot.primaryVolume
+            disk = DiskMetrics(
+                usedPercent: primary?.usedPercent ?? 0,
+                usedBytes: primary?.usedBytes ?? 0,
+                totalBytes: primary?.totalBytes ?? 0,
+                readBytesPerSecond: resolvedDiskSnapshot.readBytesPerSecond,
+                writeBytesPerSecond: resolvedDiskSnapshot.writeBytesPerSecond
+            )
+        } else {
+            disk = .empty
+        }
+
         return await SystemSnapshot(
             timestamp: Date(),
             cpu: cpu,
@@ -163,6 +182,8 @@ actor SystemMonitorService {
             networkSnapshot: resolvedNetworkSnapshot,
             gpu: gpu,
             gpuSnapshot: resolvedGPUSnapshot,
+            disk: disk,
+            diskSnapshot: resolvedDiskSnapshot,
             thermalSnapshot: resolvedThermalSnapshot
         )
     }

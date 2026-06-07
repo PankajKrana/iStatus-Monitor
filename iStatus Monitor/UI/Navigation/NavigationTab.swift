@@ -4,6 +4,7 @@ enum NavigationTab: String, CaseIterable, Identifiable {
     case dashboard
     case cpu
     case memory
+    case disk
     case network
     case gpu
     case thermal
@@ -18,6 +19,7 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         case .dashboard: "Dashboard"
         case .cpu: "CPU"
         case .memory: "Memory"
+        case .disk: "Disk"
         case .network: "Network"
         case .gpu: "GPU"
         case .thermal: "Thermal"
@@ -32,6 +34,7 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         case .dashboard: "gauge.with.dots.needle.50percent"
         case .cpu: "cpu"
         case .memory: "memorychip"
+        case .disk: "internaldrive.fill"
         case .network: "network"
         case .gpu: "display"
         case .thermal: "thermometer.sun.fill"
@@ -46,11 +49,12 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         case .dashboard: KeyboardShortcut("1", modifiers: .command)
         case .cpu: KeyboardShortcut("2", modifiers: .command)
         case .memory: KeyboardShortcut("3", modifiers: .command)
-        case .network: KeyboardShortcut("4", modifiers: .command)
-        case .gpu: KeyboardShortcut("5", modifiers: .command)
-        case .thermal: KeyboardShortcut("6", modifiers: .command)
-        case .battery: KeyboardShortcut("7", modifiers: .command)
-        case .alerts: KeyboardShortcut("8", modifiers: .command)
+        case .disk: KeyboardShortcut("4", modifiers: .command)
+        case .network: KeyboardShortcut("5", modifiers: .command)
+        case .gpu: KeyboardShortcut("6", modifiers: .command)
+        case .thermal: KeyboardShortcut("7", modifiers: .command)
+        case .battery: KeyboardShortcut("8", modifiers: .command)
+        case .alerts: KeyboardShortcut("9", modifiers: .command)
         case .history: nil
         }
     }

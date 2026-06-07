@@ -83,7 +83,7 @@ struct MainNavigationShell: View {
             }
         case .cpu:
             if let snapshot = appState.cpuSnapshot {
-                CPUView(snapshot: snapshot, searchText: searchText)
+                CPUView(snapshot: snapshot, temperatureCelsius: appState.cpu.temperatureCelsius, searchText: searchText)
                     .padding(16)
             } else {
                 EmptySectionView(symbol: "cpu", title: "No CPU Data", message: "CPU metrics will appear when monitoring starts.")
@@ -94,6 +94,13 @@ struct MainNavigationShell: View {
                     .padding(16)
             } else {
                 EmptySectionView(symbol: "memorychip", title: "No Memory Data", message: "Memory metrics are currently unavailable.")
+            }
+        case .disk:
+            if let snapshot = appState.diskSnapshot, !snapshot.volumes.isEmpty {
+                DiskView(snapshot: snapshot)
+                    .padding(16)
+            } else {
+                EmptySectionView(symbol: "internaldrive.fill", title: "No Disk Data", message: "Disk metrics will appear when monitoring starts.")
             }
         case .network:
             if let snapshot = appState.networkSnapshot {
