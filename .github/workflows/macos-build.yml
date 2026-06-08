@@ -1,0 +1,78 @@
+# GitHub Actions workflow: build iStatus Monitor on macOS.
+# Build-only CI — no signing, notarization, or release automation (added later).
+name: macOS Build
+
+# Run on every push and pull request that targets the main branch.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel an in-progress run when a newer commit is pushed to the same ref,
+# so PRs don't pile up redundant builds.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Project/scheme are defined once here so the steps below stay readable.
+# Quoting matters: both values contain a space.
+env:
+  PROJECT: "iStatus Monitor.xcodeproj"
+  SCHEME: "iStatus Monitor"
+
+jobs:
+  build:
+    name: Build (Debug)
+    # Latest macOS runner — ships a recent Xcode toolchain preinstalled.
+    runs-on: macos-latest
+
+    steps:
+      # 1. Check out the repository contents into the runner.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Select the newest stable Xcode available on the runner, so builds
+      #    don't silently drift to an older default toolchain.
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      # 3. Print the toolchain versions to the log — invaluable when diagnosing
+      #    "works on my machine" build failures.
+      - name: Show versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # 4. Cache resolved Swift Package Manager dependencies.
+      #    This project currently has no SPM packages, so the cache is a no-op —
+      #    it's wired up now so it starts working automatically the moment a
+      #    package is added, with no workflow change required.
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          # Key changes whenever any Package.resolved changes; falls back to the
+          # most recent cache for this OS otherwise.
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      # 5. Build the app. The run fails (and so does the job) if compilation
+      #    fails — that's the gate this workflow exists to enforce.
+      #    - CODE_SIGNING_ALLOWED=NO: CI has no signing identity; we only verify
+      #      that the code compiles, not that it can be distributed.
+      #    - destination 'generic/platform=macOS': build without a specific
+      #      device/OS, which is correct for a Mac app on a CI runner.
+      #    - 'set -o pipefail' ensures a build failure isn't masked by the pipe.
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination 'generic/platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO
