@@ -1,65 +1,245 @@
-# iStatus Monitor
+<div align="center">
 
-macOS 14+ system monitor built with Swift 6.2, SwiftUI lifecycle, and Swift Concurrency.
+# 📊 iStatus Monitor
 
-## Structure
+### A native macOS menu bar system monitor built with SwiftUI & SwiftData
 
-- `iStatus Monitor/iStatus Monitor/Features/`
-  - `CPU/`
-  - `RAM/`
-  - `Battery/`
-  - `Network/`
-  - `GPU/`
-  - `MenuBar/`
-- `iStatus Monitor/iStatus Monitor/Core/`
-  - `MonitorService` (`SystemMonitorService` actor)
-  - `DataStore` actor
-  - `AlertEngine` actor
-- `iStatus Monitor/iStatus Monitor/UI/`
-  - `Charts/`
-  - `Components/`
-  - `Theme/`
-- `iStatus Monitor/iStatus Monitor/Resources/`
+[![Platform](https://img.shields.io/badge/platform-macOS-blue?logo=apple)](https://www.apple.com/macos/)
+[![macOS](https://img.shields.io/badge/macOS-26%20Tahoe-black?logo=apple)](https://www.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-5-orange?logo=swift)](https://swift.org)
+[![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-0a84ff?logo=swift)](https://developer.apple.com/xcode/swiftui/)
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-ready-success?logo=apple)](https://support.apple.com/en-us/HT211814)
+[![License](https://img.shields.io/badge/license-MIT-green)](#-license)
+[![Releases](https://img.shields.io/badge/download-GitHub%20Releases-181717?logo=github)](https://github.com/PankajKrana/iStatus-Monitor/releases)
 
-## Architecture (ASCII)
+Live CPU, RAM, GPU, Network, SSD, Battery, and Thermal monitoring — directly from your macOS menu bar.
+</div>
+
+---
+
+## ✨ Overview
+
+**iStatus Monitor** is a lightweight, native macOS utility that keeps a real-time pulse on your Mac's hardware without ever getting in your way. It lives in the menu bar, runs continuously in the background, and surfaces a full dashboard only when you want it.
+
+Built entirely with **SwiftUI**, **Swift Concurrency**, and **SwiftData**, it favors a modern, observation-driven architecture: a single monitoring loop feeds an observable state model, and every view — menu bar label, popover, and dashboard — derives from that one source of truth.
+
+---
+
+## 🚀 Features
+
+### 📈 Metrics
+- **CPU** — overall load, per-core usage, load averages, frequency (Intel), temperature
+- **Memory (RAM)** — used / free / wired / compressed / cached, swap, app footprint
+- **GPU** — utilization, VRAM, temperature
+- **Network** — real-time up/down throughput, interface details, local & public IP
+- **SSD / Disk** — capacity, used/free space, read/write speeds
+- **Battery** — charge, health, cycle count, time remaining, temperature
+- **Thermal** — sensor readings, fan RPM, thermal pressure state
+
+### 🔍 Insights
+- **Process insights** — top CPU- and memory-consuming processes
+- **Network insights** — active connections, top network processes, and your public IP
+
+### 🧩 Menu Bar Experience
+- **Compact mode** — a single combined status item with all enabled metrics
+- **Per-module mode** — one independent menu bar item per metric, individually toggleable
+- **Live, color-coded labels** — values shift color with severity (normal / warning / critical)
+- **On-demand dashboard** — open the full window from any popover, close it without quitting
+
+### ⚙️ System Integration
+- 🪶 **Menu-bar-first** — no Dock icon (runs as an `LSUIElement` agent app)
+- 🔄 **Background monitoring** — keeps running with all windows closed
+- 🚀 **Launch at Login** — via the modern `SMAppService` API
+- 💾 **History persistence** — metrics stored locally with **SwiftData**
+- 🎨 **Customizable** — reorder widgets, choose display styles, pick layouts
+
+---
+
+## 🖼️ Screenshots
+
+
+| Menu Bar (Compact) | Menu Bar (Module Popover) |
+| :---: | :---: |
+| ![Compact menu bar](docs/screenshots/menubar-compact.png) | ![Module popover](docs/screenshots/menubar-module.png) |
+
+| Dashboard | Settings |
+| :---: | :---: |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Settings](docs/screenshots/settings.png) |
+
+---
+
+## 🏗️ Architecture Overview
+
+iStatus Monitor uses a **single-source-of-truth, observation-driven** design. One background actor samples all hardware on a fixed interval and publishes to an `@Observable` state model; every UI surface re-renders automatically — no per-view timers, no duplicated state.
 
 ```text
-+----------------------+         +-----------------------+
-|      SwiftUI App     |         |      MenuBarExtra     |
-| iStatus_MonitorApp   |         |      MenuBarView      |
-+----------+-----------+         +-----------+-----------+
-           |                                 |
-           v                                 |
-+----------------------+                     |
-|   @Observable        |<--------------------+
-|      AppState        |
-+----------+-----------+
-           ^
-           |
-+----------+-----------------------------------------------+
-|              SystemMonitorService (actor)                |
-|  - runs async sampling loop                              |
-|  - gathers CPU/RAM/Battery/Network/GPU concurrently      |
-|  - updates AppState on MainActor                         |
-|  - persists snapshots + triggers alerts                  |
-+----------+-------------------------+---------------------+
-           |                         |
-           v                         v
-+----------------------+   +----------------------+
-|   Feature Monitors   |   |   Core Side Effects  |
-|  CPUMonitor actor    |   |   DataStore actor    |
-|  RAMMonitor actor    |   |   AlertEngine actor  |
-|  BatteryMonitor ...  |   +----------------------+
-|  NetworkMonitor ...  |
-|  GPUMonitor ...      |
-+----------------------+
+                        ┌─────────────────────────────────────────────┐
+                        │              iStatus_MonitorApp              │
+                        │   (App entry · composition root · scenes)    │
+                        └───────┬──────────────┬──────────────┬────────┘
+                                │              │              │
+                ┌───────────────▼──┐   ┌───────▼───────┐  ┌───▼────────────┐
+                │   WindowGroup     │   │  MenuBarExtra │  │    Settings    │
+                │  (Dashboard, on-  │   │  (compact +   │  │     scene      │
+                │   demand window)  │   │  per-module)  │  │                │
+                └───────────────┬──┘   └───────┬───────┘  └────────────────┘
+                                │              │
+                                ▼              ▼
+                        ┌─────────────────────────────────┐
+                        │     AppState  (@Observable)      │  ◄── single source of truth
+                        │     live metrics + insights      │
+                        └───────────────▲─────────────────┘
+                                        │  applies snapshots (MainActor)
+                        ┌───────────────┴─────────────────┐
+                        │   SystemMonitorService (actor)   │  ◄── the only loop in the app
+                        │   one tick → sample → publish    │
+                        └───────────────┬─────────────────┘
+              ┌────────────┬────────────┼────────────┬─────────────┐
+              ▼            ▼            ▼            ▼             ▼
+          ┌───────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────┐
+          │  CPU  │   │ Memory │   │ Network│   │  GPU   │   │ Battery… │   per-domain monitors
+          └───────┘   └────────┘   └────────┘   └────────┘   └──────────┘
+                                        │
+                          ┌─────────────┼──────────────┐
+                          ▼             ▼              ▼
+                    ┌──────────┐  ┌────────────┐  ┌─────────────┐
+                    │ DataStore│  │HistoryStore│  │ AlertEngine │
+                    │  (actor) │  │ (SwiftData)│  │   (actor)   │
+                    └──────────┘  └────────────┘  └─────────────┘
 ```
 
-## Configuration Notes
+**Key principles**
 
-- Deployment target: macOS 14+
-- Swift language mode: Swift 6.2
-- No AppDelegate used; app uses SwiftUI lifecycle.
-- Entitlements include sandbox disabled and network client/server enabled.
-- `Info.plist` includes local network and notification-related keys.
-- IOKit does not require a dedicated privacy key; this template includes `IStatusIOKitAccessReason` for internal documentation.
+- **One loop, one state.** `SystemMonitorService` is the sole sampling loop. It owns no UI; UI owns no timers.
+- **Concurrency-safe by construction.** Monitors and stores are `actor`s; state is applied on the `@MainActor`.
+- **Presentation derives from data.** `WidgetManager` computes menu bar segments from `AppState` + configuration via Observation — nothing is cached or duplicated.
+- **Lifecycle is explicit.** As an agent app, the process outlives its windows (`applicationShouldTerminateAfterLastWindowClosed → false`); monitoring is tied to app lifetime, not the dashboard window.
+
+```text
+iStatus Monitor/
+├── Core/                 # AppState, SystemMonitorService, DataStore, HistoryStore, AlertEngine
+├── Features/
+│   ├── CPU · RAM · GPU · Network · Disk · Battery · Thermal · Process
+│   └── MenuBar/          # MenuBarExtra scenes, WidgetManager, renderer, settings
+├── UI/
+│   ├── Navigation/       # Dashboard shell, Settings
+│   ├── Components/        # Per-metric views
+│   ├── Charts/           # Sparklines, rolling time-series
+│   └── Theme/
+└── Resources/            # Assets, entitlements
+```
+
+---
+
+## 🛠️ Installation (Build from Source)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/PankajKrana/iStatus-Monitor.git
+cd "iStatus-Monitor"
+
+# 2. Open in Xcode
+open "iStatus Monitor.xcodeproj"
+```
+
+Then, in Xcode:
+
+3. Select the **iStatus Monitor** scheme.
+4. Choose a destination (your Mac).
+5. Press **⌘R** to build and run.
+
+> 💡 The app launches into the menu bar (no Dock icon). Click the menu bar item and choose **Open Dashboard** to see the full window.
+
+---
+
+## 📦 Release Installation
+
+For most users — no Xcode required:
+
+1. **Download** the latest `iStatus Monitor.app.zip` from the [**Releases**](https://github.com/PankajKrana/iStatus-Monitor/releases) page.
+2. **Unzip** and **move** `iStatus Monitor.app` into your `/Applications` folder.
+
+   ```bash
+   mv ~/Downloads/"iStatus Monitor.app" /Applications/
+   ```
+
+   > ⚠️ Launch at Login requires the app to live in a stable location. Always run it from `/Applications`, not from `~/Downloads` or a build folder.
+
+3. **Open** the app (right-click → **Open** on first launch if Gatekeeper prompts).
+4. **Enable Launch at Login**: click the menu bar item → **Settings… → General → Launch at login**.
+
+That's it — iStatus Monitor will now start automatically and run quietly in your menu bar.
+
+---
+
+## 💻 Requirements
+
+| Requirement | Version |
+| --- | --- |
+| 🍎 **macOS** | macOS 26 (Tahoe) or later |
+| 🧰 **Xcode** | Xcode 26 or later (to build from source) |
+| 🛠️ **Swift** | Swift 5 language mode (toolchain 6.x) |
+| 💻 **Architecture** | Apple Silicon (arm64) |
+
+> Apple Silicon is fully supported. Some metrics (e.g. nominal CPU frequency) rely on Intel-only sysctls and are gracefully omitted on M-series Macs.
+
+---
+
+## 🧑‍💻 Development
+
+### Build
+
+```bash
+# Debug build
+xcodebuild -project "iStatus Monitor.xcodeproj" \
+  -scheme "iStatus Monitor" -configuration Debug build
+
+# Release build
+xcodebuild -project "iStatus Monitor.xcodeproj" \
+  -scheme "iStatus Monitor" -configuration Release build
+```
+
+### Run Tests
+
+```bash
+xcodebuild test \
+  -project "iStatus Monitor.xcodeproj" \
+  -scheme "iStatus Monitor" \
+  -destination 'platform=macOS'
+```
+
+The test suite (`iStatus MonitorTests/`) covers the monitoring service, CPU sampling, the alert engine, and SwiftData history persistence.
+
+### Project Layout Conventions
+
+- Each metric lives under `Features/<Domain>/` with its own monitor and snapshot model.
+- Shared coordinators and persistence live in `Core/`.
+- UI is split into `Navigation/`, `Components/`, `Charts/`, and `Theme/`.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome and appreciated! 🎉
+
+1. **Fork** the repository.
+2. **Create a branch**: `git checkout -b feature/my-feature`.
+3. **Commit** your changes with clear messages.
+4. **Test**: ensure `xcodebuild test` passes.
+5. **Open a Pull Request** describing the change and rationale.
+
+Please keep PRs focused, match the existing architecture (single-source-of-truth, actor-isolated monitors), and add tests where it makes sense. For larger features, open an issue first to align on the approach.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+
+---
+
+<div align="center">
+
+If you find iStatus Monitor useful, consider giving it a ⭐ on [GitHub](https://github.com/PankajKrana/iStatus-Monitor)!
+
+</div>
