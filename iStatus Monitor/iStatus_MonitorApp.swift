@@ -13,6 +13,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct iStatus_MonitorApp: App {
+    /// Scene id for the dashboard window, so menu bar actions can open it via
+    /// `openWindow`. Required for an `LSUIElement` app: no window auto-opens at
+    /// launch, so the dashboard must be openable on demand.
+    static let dashboardWindowID = "dashboard"
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @State private var appState: AppState
@@ -82,7 +87,7 @@ struct iStatus_MonitorApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: Self.dashboardWindowID) {
             MainNavigationShell(appState: appState, alertsStore: alertsStore, historyViewModel: historyViewModel)
                 .task {
                     await monitorService.start(appState: appState)

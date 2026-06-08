@@ -2,11 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     let widgetManager: WidgetManager
-    let menuBarSettings: MenuBarSettings
+    @Bindable var menuBarSettings: MenuBarSettings
 
     @State private var selectedSection: SettingsSection = .general
 
-    @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
     @AppStorage("defaultTab") private var defaultTab: String = NavigationTab.dashboard.rawValue
     @AppStorage("updateInterval") private var updateInterval: Double = 1.0
     @AppStorage("compactLayout") private var compactLayout: Bool = false
@@ -81,7 +80,13 @@ struct SettingsView: View {
     private var generalSettings: some View {
         Form {
             Section("General") {
-                Toggle("Launch at login", isOn: $launchAtLogin)
+                Toggle("Launch at login", isOn: $menuBarSettings.launchAtLogin)
+
+                if let error = menuBarSettings.launchAtLoginError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
 
                 Picker("Default tab", selection: $defaultTab) {
                     ForEach(NavigationTab.allCases) { tab in

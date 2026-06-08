@@ -70,6 +70,8 @@ struct ModuleMenuBarPopover: View {
     let widgetManager: WidgetManager
     let widgetId: String
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
@@ -108,13 +110,19 @@ struct ModuleMenuBarPopover: View {
     }
 
     private var footer: some View {
-        HStack {
-            SettingsLink {
-                Text("Settings…")
+        VStack(spacing: 8) {
+            Button("Open Dashboard") {
+                openWindow(id: iStatus_MonitorApp.dashboardWindowID)
+                NSApplication.shared.activate(ignoringOtherApps: true)
             }
-            Spacer()
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
+            HStack {
+                SettingsLink {
+                    Text("Settings…")
+                }
+                Spacer()
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
             }
         }
     }

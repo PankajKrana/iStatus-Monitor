@@ -111,6 +111,8 @@ private struct MenuBarPopoverView: View {
     let appState: AppState
     let widgetManager: WidgetManager
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("iStatus Monitor")
@@ -129,6 +131,11 @@ private struct MenuBarPopoverView: View {
             }
 
             Divider()
+
+            Button("Open Dashboard") {
+                openWindow(id: iStatus_MonitorApp.dashboardWindowID)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
 
             HStack {
                 SettingsLink {
