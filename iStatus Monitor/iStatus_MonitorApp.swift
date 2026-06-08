@@ -1,8 +1,20 @@
+import AppKit
 import SwiftData
 import SwiftUI
 
+/// Keeps the process alive after the dashboard window is closed. This is already
+/// the de-facto behavior (`LSUIElement` + an always-inserted `MenuBarExtra`), but
+/// stating it explicitly future-proofs the app against scene/Info.plist changes.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+}
+
 @main
 struct iStatus_MonitorApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     @State private var appState: AppState
     @State private var menuBarSettings = MenuBarSettings()
 
