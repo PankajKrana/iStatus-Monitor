@@ -84,11 +84,6 @@ struct iStatus_MonitorApp: App {
                     alertsStore.refresh()
                     historyViewModel.reload()
                 }
-                .onDisappear {
-                    Task {
-                        await monitorService.stop()
-                    }
-                }
         }
         .modelContainer(modelContainer)
         .windowStyle(.hiddenTitleBar)
