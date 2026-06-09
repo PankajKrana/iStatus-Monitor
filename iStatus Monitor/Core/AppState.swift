@@ -8,7 +8,7 @@ final class AppState {
     var cpu: CPUMetrics = .empty
     var cpuSnapshot: CPUSnapshot?
     var cpuHistory: [CPUSnapshot] = []
-    var ram: RAMMetrics = .empty
+    var ram: MemoryMetrics = .empty
     var memorySnapshot: MemorySnapshot?
     var battery: BatteryMetrics = .empty
     var batterySnapshot: BatterySnapshot?

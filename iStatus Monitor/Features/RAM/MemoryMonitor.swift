@@ -32,13 +32,24 @@ actor MemoryMonitor {
         let pageSize = UInt64(vm_kernel_page_size)
         let total = ProcessInfo.processInfo.physicalMemory
 
+        // Categories follow Activity Monitor: app memory is anonymous (internal,
+        // non-purgeable) pages; cached files are file-backed (external) plus
+        // purgeable pages. active/inactive are page-aging states, not categories.
         let wired = UInt64(vmStats.wire_count) * pageSize
-        let active = UInt64(vmStats.active_count) * pageSize
         let compressed = UInt64(vmStats.compressor_page_count) * pageSize
-        let inactive = UInt64(vmStats.inactive_count) * pageSize
-        let free = UInt64(vmStats.free_count) * pageSize
+        let purgeable = UInt64(vmStats.purgeable_count) * pageSize
+        let external = UInt64(vmStats.external_page_count) * pageSize
+        let internalPages = UInt64(vmStats.internal_page_count) * pageSize
+        let app = internalPages > purgeable ? internalPages - purgeable : 0
+        let cached = external + purgeable
 
-        let used = wired + active + compressed
+        // Used = App Memory + Wired + Compressed (matches Activity Monitor's
+        // "Memory Used"). Cached files are available and excluded from used.
+        let used = app + wired + compressed
+        // Free is genuinely unallocated memory, so the composition segments
+        // (app + wired + compressed + cached + free) sum to physical total.
+        let accounted = used + cached
+        let free = total > accounted ? total - accounted : 0
         let pressure = pressureLevel(used: used, total: total)
 
         let swap = readSwapInfo()
@@ -48,9 +59,9 @@ actor MemoryMonitor {
             totalBytes: total,
             usedBytes: used,
             wiredBytes: wired,
-            appBytes: active,
+            appBytes: app,
             compressedBytes: compressed,
-            cachedBytes: inactive,
+            cachedBytes: cached,
             freeBytes: free,
             swapUsedBytes: swap.used,
             swapTotalBytes: swap.total,
@@ -58,11 +69,11 @@ actor MemoryMonitor {
         )
     }
 
-    func read() async -> RAMMetrics {
+    func read() async -> MemoryMetrics {
         guard let snapshot = latestSnapshot() else {
-            return RAMMetrics.empty
+            return MemoryMetrics.empty
         }
-        return RAMMetrics(usedBytes: snapshot.usedBytes, totalBytes: snapshot.totalBytes)
+        return MemoryMetrics(usedBytes: snapshot.usedBytes, totalBytes: snapshot.totalBytes)
     }
 
     private func readVMStatistics() -> vm_statistics64_data_t? {
@@ -81,21 +92,15 @@ actor MemoryMonitor {
     }
 
     private func readSwapInfo() -> (used: UInt64, total: UInt64) {
-        var fs = statfs()
+        // Reads the kernel's swap accounting (vm.swapusage), matching Activity Monitor
+        // and `sysctl vm.swapusage`. xsw_usage fields are already in bytes.
+        var usage = xsw_usage()
+        var size = MemoryLayout<xsw_usage>.stride
 
-        // Reads filesystem capacity statistics for /private/var/vm where macOS stores swap files.
-        let status = "/private/var/vm".withCString { ptr in
-            statfs(ptr, &fs)
-        }
-
+        let status = sysctlbyname("vm.swapusage", &usage, &size, nil, 0)
         guard status == 0 else { return (0, 0) }
 
-        let blockSize = UInt64(fs.f_bsize)
-        let total = UInt64(fs.f_blocks) * blockSize
-        let available = UInt64(fs.f_bavail) * blockSize
-        let used = total > available ? total - available : 0
-
-        return (used, total)
+        return (UInt64(usage.xsu_used), UInt64(usage.xsu_total))
     }
 
     private func pressureLevel(used: UInt64, total: UInt64) -> MemoryPressureLevel {

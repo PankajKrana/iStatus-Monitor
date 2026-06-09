@@ -180,7 +180,7 @@ struct HistoryStoreTests {
                 overallLoad: Float(cpu) / 100,
                 loadAverage: LoadAverage(one: 1.0, five: 1.0, fifteen: 1.0)
             ),
-            ram: RAMMetrics(usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100), totalBytes: totalBytes),
+            ram: MemoryMetrics(usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100), totalBytes: totalBytes),
             memorySnapshot: MemorySnapshot(
                 timestamp: Date(),
                 totalBytes: totalBytes,

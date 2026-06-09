@@ -157,9 +157,9 @@ actor SystemMonitorService {
             cpu = .empty
         }
 
-        let ram: RAMMetrics
+        let ram: MemoryMetrics
         if let resolvedMemorySnapshot {
-            ram = RAMMetrics(usedBytes: resolvedMemorySnapshot.usedBytes, totalBytes: resolvedMemorySnapshot.totalBytes)
+            ram = MemoryMetrics(usedBytes: resolvedMemorySnapshot.usedBytes, totalBytes: resolvedMemorySnapshot.totalBytes)
         } else {
             ram = .empty
         }

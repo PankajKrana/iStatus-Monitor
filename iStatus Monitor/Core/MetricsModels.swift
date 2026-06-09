@@ -301,7 +301,7 @@ struct CPUMetrics: Codable, Sendable {
     static let empty = CPUMetrics(usagePercent: 0, coreCount: 0, temperatureCelsius: nil)
 }
 
-struct RAMMetrics: Codable, Sendable {
+struct MemoryMetrics: Codable, Sendable {
     var usedBytes: UInt64
     var totalBytes: UInt64
 
@@ -310,7 +310,7 @@ struct RAMMetrics: Codable, Sendable {
         return (Double(usedBytes) / Double(totalBytes)) * 100
     }
 
-    static let empty = RAMMetrics(usedBytes: 0, totalBytes: 0)
+    static let empty = MemoryMetrics(usedBytes: 0, totalBytes: 0)
 }
 
 struct BatteryMetrics: Codable, Sendable {
@@ -350,7 +350,7 @@ struct SystemSnapshot: Codable, Sendable {
     var timestamp: Date
     var cpu: CPUMetrics
     var cpuSnapshot: CPUSnapshot?
-    var ram: RAMMetrics
+    var ram: MemoryMetrics
     var memorySnapshot: MemorySnapshot?
     var battery: BatteryMetrics
     var batterySnapshot: BatterySnapshot?
