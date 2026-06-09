@@ -4,10 +4,16 @@ actor DataStore {
     private let encoder = JSONEncoder()
     private let fileURL: URL
 
-    init(filename: String = "metrics-log.jsonl") {
+    /// Cap on the live metrics log. At ~1 sample/sec the file would otherwise grow
+    /// unbounded on a continuously-running menu-bar utility (B10). When exceeded
+    /// the log is rotated to a single `.1` backup, bounding disk use to ~2× this.
+    private let maxLogBytes: UInt64
+
+    init(filename: String = "metrics-log.jsonl", maxLogBytes: UInt64 = 10_000_000) {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         fileURL = base.appendingPathComponent("iStatusMonitor").appendingPathComponent(filename)
+        self.maxLogBytes = maxLogBytes
     }
 
     func persist(_ snapshot: SystemSnapshot) async {
@@ -35,10 +41,24 @@ actor DataStore {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         }
 
+        rotateIfNeeded()
+
         let handle = try FileHandle(forWritingTo: fileURL)
         defer { try? handle.close() }
         try handle.seekToEnd()
         handle.write(data)
         handle.write(Data([0x0A]))
+    }
+
+    /// Rotate the log to a single `.1` backup once it exceeds the size cap.
+    private func rotateIfNeeded() {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        let size = (attrs?[.size] as? NSNumber)?.uint64Value ?? 0
+        guard size >= maxLogBytes else { return }
+
+        let backup = fileURL.appendingPathExtension("1")
+        try? FileManager.default.removeItem(at: backup)
+        try? FileManager.default.moveItem(at: fileURL, to: backup)
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
     }
 }

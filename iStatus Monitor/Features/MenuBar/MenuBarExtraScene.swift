@@ -20,7 +20,11 @@ struct MenuBarExtraScene: Scene {
         MenuBarExtra(isInserted: compactInsertedBinding) {
             MenuBarPopoverView(appState: appState, widgetManager: widgetManager)
         } label: {
+            // The menu bar label is always present in an LSUIElement app, making
+            // it the reliable host for the "open dashboard from a notification
+            // tap" bridge (AppKit cannot open a SwiftUI WindowGroup directly).
             MenuBarLabelView(widgetManager: widgetManager)
+                .modifier(OpenDashboardBridge())
         }
         .menuBarExtraStyle(.window)
 
@@ -173,6 +177,23 @@ private struct MetricRow: View {
             Text(widget.formattedValue(from: appState))
                 .monospacedDigit()
                 .foregroundStyle(menuBarColor(for: widget.severity(from: appState)))
+        }
+    }
+}
+
+// MARK: - Open Dashboard Bridge
+
+/// Listens for `.openDashboardWindow` (posted by the notification delegate when
+/// the user taps an alert) and opens the dashboard window via SwiftUI's
+/// `openWindow`. Attached to an always-present view so it works even when no
+/// window is currently open.
+private struct OpenDashboardBridge: ViewModifier {
+    @Environment(\.openWindow) private var openWindow
+
+    func body(content: Content) -> some View {
+        content.onReceive(NotificationCenter.default.publisher(for: .openDashboardWindow)) { _ in
+            openWindow(id: iStatus_MonitorApp.dashboardWindowID)
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
     }
 }

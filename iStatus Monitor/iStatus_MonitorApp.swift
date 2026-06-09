@@ -1,13 +1,54 @@
 import AppKit
 import SwiftData
 import SwiftUI
+import UserNotifications
 
-/// Keeps the process alive after the dashboard window is closed. This is already
-/// the de-facto behavior (`LSUIElement` + an always-inserted `MenuBarExtra`), but
-/// stating it explicitly future-proofs the app against scene/Info.plist changes.
-final class AppDelegate: NSObject, NSApplicationDelegate {
+extension Notification.Name {
+    /// Posted by the notification delegate when the user taps an alert (or its
+    /// "View Dashboard" action). An always-present SwiftUI view observes this and
+    /// calls `openWindow`, since AppKit cannot open a SwiftUI `WindowGroup` window
+    /// directly.
+    static let openDashboardWindow = Notification.Name("iStatusMonitor.openDashboardWindow")
+}
+
+/// Owns process-lifetime concerns that must not depend on any window existing:
+/// - keeps the app alive after the dashboard window closes (menu-bar utility),
+/// - starts metric/alert monitoring at launch so alerts fire even if the
+///   dashboard is never opened (B1),
+/// - acts as the `UNUserNotificationCenterDelegate` so alerts present while the
+///   app is active and the "View Dashboard" action works (B8).
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    /// Set by the App composition root. Invoked once, after launch, on the main
+    /// actor — independent of any window's lifecycle.
+    var onFinishLaunching: (() -> Void)?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        UNUserNotificationCenter.current().delegate = self
+        onFinishLaunching?()
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    // MARK: UNUserNotificationCenterDelegate
+
+    /// Present alerts as banners even while the app is active/foreground.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .list]
+    }
+
+    /// Handle taps on an alert (default action) and on the "View Dashboard"
+    /// button: bring the app forward and ask SwiftUI to open the dashboard.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        NotificationCenter.default.post(name: .openDashboardWindow, object: nil)
     }
 }
 
@@ -84,6 +125,16 @@ struct iStatus_MonitorApp: App {
         _widgetRegistry = State(initialValue: registry)
         _widgetConfigStore = State(initialValue: configStore)
         _widgetManager = State(initialValue: manager)
+
+        // Start monitoring at process launch, independent of any window. This is
+        // the fix for B1: as an `LSUIElement` app no window opens automatically,
+        // so a window-bound `.task` would leave alerts dormant until the user
+        // manually opened the dashboard. `start()` is idempotent (guards on
+        // `loopTask == nil`), so the redundant `.task` below is harmless.
+        let service = monitorService
+        appDelegate.onFinishLaunching = {
+            Task { await service.start(appState: appState) }
+        }
     }
 
     var body: some Scene {

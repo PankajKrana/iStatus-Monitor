@@ -1,14 +1,42 @@
 import Foundation
 import Testing
+import UserNotifications
 @testable import iStatus_Monitor
 
+/// Test double that reports notifications as authorized and always delivers, so
+/// the engine's record-on-delivery path runs deterministically without a live
+/// `UNUserNotificationCenter`.
+actor StubNotifier: AlertNotifying {
+    private(set) var delivered: [AlertNotification] = []
+
+    func authorizationStatus() async -> UNAuthorizationStatus { .authorized }
+    func requestAuthorization() async {}
+    func configureCategories() async {}
+
+    @discardableResult
+    func deliver(_ notification: AlertNotification) async -> Bool {
+        delivered.append(notification)
+        return true
+    }
+}
+
+/// Test double simulating notifications being denied: delivery always fails.
+actor DenyingNotifier: AlertNotifying {
+    func authorizationStatus() async -> UNAuthorizationStatus { .denied }
+    func requestAuthorization() async {}
+    func configureCategories() async {}
+    @discardableResult
+    func deliver(_ notification: AlertNotification) async -> Bool { false }
+}
+
+@MainActor
 struct AlertEngineTests {
     var defaults: UserDefaults!
     var engine: AlertEngine!
 
     init() {
         defaults = UserDefaults(suiteName: "AlertEngineTests-\(UUID().uuidString)")
-        engine = AlertEngine(defaults: defaults, seedDefaultRules: false)
+        engine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: StubNotifier())
     }
 
     // MARK: - Rule Management Tests
@@ -334,12 +362,107 @@ struct AlertEngineTests {
 
         await engine.upsertRule(rule)
 
-        let newEngine = AlertEngine(defaults: defaults, seedDefaultRules: false)
+        let newEngine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: StubNotifier())
         let rules = await newEngine.getRules()
 
         #expect(rules.count == 1)
         #expect(rules[0].id == id)
         #expect(rules[0].threshold == 85)
+    }
+
+    // MARK: - Sustained Duration Tests (B3/B4)
+
+    @Test("sustainedFor rule does not fire until the duration elapses")
+    func sustainedRuleWaitsForDuration() async {
+        let rule = AlertRule(
+            id: UUID(),
+            metric: .cpu,
+            condition: .above,
+            threshold: 80,
+            cooldown: 0,
+            isEnabled: true,
+            label: "Sustained CPU",
+            sustainedFor: 3
+        )
+        await engine.upsertRule(rule)
+
+        // Each evaluate represents one 1s interval above threshold.
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)
+        #expect((await engine.getHistory()).isEmpty)            // 1s elapsed
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)
+        #expect((await engine.getHistory()).isEmpty)            // 2s elapsed
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)
+        #expect(!(await engine.getHistory()).isEmpty)           // 3s elapsed -> fires
+    }
+
+    @Test("dropping below threshold resets the sustained timer")
+    func sustainedRuleResetsOnDrop() async {
+        let rule = AlertRule(
+            id: UUID(),
+            metric: .cpu,
+            condition: .above,
+            threshold: 80,
+            cooldown: 0,
+            isEnabled: true,
+            label: "Sustained CPU",
+            sustainedFor: 3
+        )
+        await engine.upsertRule(rule)
+
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)  // 1s
+        await engine.evaluate(createMockSnapshot(cpu: 10), interval: 1)  // reset
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)  // 1s again
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)  // 2s
+        #expect((await engine.getHistory()).isEmpty)
+    }
+
+    @Test("two CPU rules track sustained duration independently (B4)")
+    func sustainedRulesDoNotShareCounter() async {
+        let fast = AlertRule(
+            id: UUID(), metric: .cpu, condition: .above, threshold: 80,
+            cooldown: 0, isEnabled: true, label: "Fast", sustainedFor: 1
+        )
+        let slow = AlertRule(
+            id: UUID(), metric: .cpu, condition: .above, threshold: 80,
+            cooldown: 0, isEnabled: true, label: "Slow", sustainedFor: 5
+        )
+        await engine.upsertRule(fast)
+        await engine.upsertRule(slow)
+
+        await engine.evaluate(createMockSnapshot(cpu: 95), interval: 1)
+
+        let history = await engine.getHistory()
+        // After 1s only the 1s rule should have fired — proving the counter is
+        // per-rule, not shared/double-incremented across both CPU rules.
+        #expect(history.contains { $0.ruleLabel == "Fast" })
+        #expect(!history.contains { $0.ruleLabel == "Slow" })
+    }
+
+    @Test("legacy rule without sustainedFor key migrates the 'for 10s' default")
+    func legacyDurationMigration() throws {
+        let json = """
+        {"id":"\(UUID().uuidString)","metric":"cpu","condition":"above",
+         "threshold":90,"cooldown":300,"isEnabled":true,"label":"CPU > 90% for 10s"}
+        """
+        let rule = try JSONDecoder().decode(AlertRule.self, from: Data(json.utf8))
+        #expect(rule.sustainedFor == 10)
+    }
+
+    // MARK: - Delivery Tests (B6)
+
+    @Test("history is not recorded when notifications are unauthorized")
+    func unauthorizedDeliveryRecordsNothing() async {
+        let denying = DenyingNotifier()
+        let denyEngine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: denying)
+        let rule = AlertRule(
+            id: UUID(), metric: .cpu, condition: .above, threshold: 80,
+            cooldown: 0, isEnabled: true, label: "CPU"
+        )
+        await denyEngine.upsertRule(rule)
+
+        await denyEngine.evaluate(createMockSnapshot(cpu: 95))
+
+        #expect((await denyEngine.getHistory()).isEmpty)
     }
 
     // MARK: - Helper Functions
