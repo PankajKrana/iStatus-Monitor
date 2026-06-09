@@ -477,7 +477,7 @@ struct AlertEngineTests {
             timestamp: Date(),
             cpu: CPUMetrics(usagePercent: cpu, coreCount: 8, temperatureCelsius: nil),
             cpuSnapshot: nil,
-            ram: RAMMetrics(usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100), totalBytes: totalBytes),
+            ram: MemoryMetrics(usedBytes: UInt64(Double(totalBytes) * memoryPercent / 100), totalBytes: totalBytes),
             memorySnapshot: nil,
             battery: BatteryMetrics(levelPercent: batteryPercent, isCharging: false, cycleCount: 100),
             batterySnapshot: BatterySnapshot(
