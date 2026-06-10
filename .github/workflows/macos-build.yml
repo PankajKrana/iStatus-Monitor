@@ -1,0 +1,98 @@
+name: macOS Build
+
+# Continuous Integration for iStatus Monitor (macOS SwiftUI app).
+#
+# Triggers:
+#   - Pushes to `develop`                  (validate integration branch)
+#   - Pull requests targeting `develop`    (validate feature/* before merge)
+#   - Pull requests targeting `main`       (validate release candidates)
+#
+# Intentionally NOT triggered by direct pushes to `main`: `main` is updated
+# only through reviewed pull requests, which are already validated above.
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+      - main
+
+# Cancel an in-progress run when a newer commit is pushed to the same branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege: this workflow only needs to read the repository contents.
+permissions:
+  contents: read
+
+env:
+  PROJECT: "iStatus Monitor.xcodeproj"
+  SCHEME: "iStatus Monitor"
+
+jobs:
+  build:
+    name: Build (macOS)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # Pin to the latest stable Xcode the runner provides so builds are
+        # reproducible rather than depending on the image's default.
+        run: sudo xcode-select -switch /Applications/Xcode.app
+        # If you need a specific version, replace with e.g.:
+        #   sudo xcode-select -switch /Applications/Xcode_16.app
+
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Cache Swift Package Manager dependencies
+        uses: actions/cache@v4
+        with:
+          # Xcode resolves SPM packages into DerivedData/SourcePackages and a
+          # shared SwiftPM cache. Caching both avoids re-downloading/re-building
+          # dependencies on every run.
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+            ~/Library/Caches/org.swift.swiftpm
+          # Key off Package.resolved so the cache invalidates when dependencies
+          # change. The glob tolerates the file not existing yet (no SPM deps).
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Resolve Swift packages
+        # Pre-resolve so dependency resolution failures surface as a distinct,
+        # readable step rather than being buried in the build log. No-op until
+        # the project gains SPM dependencies.
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          # Prettify output with xcbeautify when available (preinstalled on the
+          # GitHub macOS runner); fall back to raw xcodebuild output otherwise.
+          # `pipefail` ensures a compile failure fails the step even when piped.
+          build() {
+            xcodebuild build \
+              -project "$PROJECT" \
+              -scheme "$SCHEME" \
+              -configuration Debug \
+              -destination 'platform=macOS' \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO
+          }
+          if command -v xcbeautify >/dev/null 2>&1; then
+            build | xcbeautify
+          else
+            build
+          fi
