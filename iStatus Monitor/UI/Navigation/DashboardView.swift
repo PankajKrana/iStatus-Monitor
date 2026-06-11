@@ -156,20 +156,21 @@ struct DashboardView: View {
                         onNavigate(.thermal)
                     }
 
-                    // System Health Card
+                    // System Health Card — composite of the real per-metric
+                    // statuses (no fabricated values), tapping opens Alerts.
                     dashboardCard(
                         title: "Health",
-                        metric: "Good",
+                        metric: overallHealthLabel,
                         icon: "heart.fill",
-                        tint: .green,
-                        sparkline: [100, 98, 99, 97, 100],
-                        status: .normal,
+                        tint: overallHealthTint,
+                        sparkline: [],
+                        status: overallHealthStatus,
                         miniStats: [
                             ("Uptime", formatUptime()),
                             ("Alerts", "\(alertsStore.badgeCountLastHour) recent")
                         ]
                     ) {
-                        // Placeholder for system health navigation
+                        onNavigate(.alerts)
                     }
                 }
 
@@ -196,6 +197,43 @@ struct DashboardView: View {
         }
         .onAppear {
             systemInfo = .current()
+        }
+    }
+
+    // Composite system health derived from the real per-metric statuses — worst
+    // severity wins. Replaces the previous hardcoded "Good" / fake sparkline.
+    private var overallHealthStatus: StatusBadge.Status {
+        let worst = [cpuStatus, gpuStatus, memoryStatus, diskStatus, batteryStatus, thermalStatus]
+            .map(severityRank(of:))
+            .max() ?? 0
+        switch worst {
+        case 2: return .critical
+        case 1: return .warning
+        default: return .normal
+        }
+    }
+
+    private var overallHealthLabel: String {
+        switch severityRank(of: overallHealthStatus) {
+        case 2: return "Needs Attention"
+        case 1: return "Fair"
+        default: return "Good"
+        }
+    }
+
+    private var overallHealthTint: Color {
+        switch severityRank(of: overallHealthStatus) {
+        case 2: return .red
+        case 1: return .orange
+        default: return .green
+        }
+    }
+
+    private func severityRank(of status: StatusBadge.Status) -> Int {
+        switch status {
+        case .critical: return 2
+        case .warning: return 1
+        default: return 0
         }
     }
 

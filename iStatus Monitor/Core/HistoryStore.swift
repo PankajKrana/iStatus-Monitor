@@ -3,8 +3,6 @@ import SwiftData
 
 @ModelActor
 actor HistoryStore {
-    private let encoder = JSONEncoder()
-
     private var lastPersistAt: Date?
     // Write-once during init, read-only afterward. `nonisolated(unsafe)` lets the
     // delegating initializer set it after `self.init(modelContainer:)` (a synchronous
@@ -26,20 +24,20 @@ actor HistoryStore {
         }
         lastPersistAt = now
 
-        persist(metric: .cpu, value: snapshot.cpu.usagePercent, snapshot: snapshot, at: now)
-        persist(metric: .memory, value: snapshot.ram.usedPercent, snapshot: snapshot, at: now)
-        persist(metric: .network, value: Double(snapshot.network.bytesInPerSecond + snapshot.network.bytesOutPerSecond) / 1024.0, snapshot: snapshot, at: now)
-        persist(metric: .battery, value: snapshot.battery.levelPercent, snapshot: snapshot, at: now)
+        persist(metric: .cpu, value: snapshot.cpu.usagePercent, at: now)
+        persist(metric: .memory, value: snapshot.ram.usedPercent, at: now)
+        persist(metric: .network, value: Double(snapshot.network.bytesInPerSecond + snapshot.network.bytesOutPerSecond) / 1024.0, at: now)
+        persist(metric: .battery, value: snapshot.battery.levelPercent, at: now)
 
         if let maxTemp = snapshot.thermalSnapshot?.sensors.map(\.celsius).max() {
-            persist(metric: .temperature, value: maxTemp, snapshot: snapshot, at: now)
+            persist(metric: .temperature, value: maxTemp, at: now)
         }
 
         trimRollingWindow(reference: now)
         try? modelContext.save()
     }
 
-    func history(for metric: MetricType, in interval: DateInterval) async -> [MetricRecord] {
+    func history(for metric: MetricType, in interval: DateInterval) async -> [MetricSample] {
         let descriptor = FetchDescriptor<MetricRecord>(
             predicate: #Predicate { record in
                 record.metricType == metric.rawValue
@@ -48,7 +46,10 @@ actor HistoryStore {
             },
             sortBy: [SortDescriptor(\.timestamp, order: .forward)]
         )
-        return (try? modelContext.fetch(descriptor)) ?? []
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        // Map to a Sendable value type before crossing the actor boundary —
+        // live @Model objects must not escape the ModelContext's isolation.
+        return records.map { MetricSample(timestamp: $0.timestamp, metricType: $0.metricType, value: $0.value) }
     }
 
     func dailyAverages(for metric: MetricType, days: Int) async -> [(Date, Double)] {
@@ -74,13 +75,15 @@ actor HistoryStore {
         return (min, max, avg)
     }
 
-    func exportRecords(for metric: MetricType, in interval: DateInterval) async -> [MetricRecord] {
+    func exportRecords(for metric: MetricType, in interval: DateInterval) async -> [MetricSample] {
         await history(for: metric, in: interval)
     }
 
-    private func persist(metric: MetricType, value: Double, snapshot: SystemSnapshot, at timestamp: Date) {
-        let metadata = try? encoder.encode(snapshot)
-        let record = MetricRecord(timestamp: timestamp, metricType: metric.rawValue, value: value, metadata: metadata)
+    private func persist(metric: MetricType, value: Double, at timestamp: Date) {
+        // Only the scalar `value` is stored. The previous implementation encoded
+        // the entire SystemSnapshot into `metadata` on every record (5×/tick),
+        // which was never read back and bloated the store to GB scale.
+        let record = MetricRecord(timestamp: timestamp, metricType: metric.rawValue, value: value)
         modelContext.insert(record)
     }
 
