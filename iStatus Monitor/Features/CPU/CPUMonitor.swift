@@ -122,10 +122,15 @@ actor CPUMonitor {
 
         for core in 0 ..< Int(cpuCount) {
             let base = core * stride
-            let user = UInt32(cpuInfo[base + Int(CPU_STATE_USER)])
-            let system = UInt32(cpuInfo[base + Int(CPU_STATE_SYSTEM)])
-            let idle = UInt32(cpuInfo[base + Int(CPU_STATE_IDLE)])
-            let nice = UInt32(cpuInfo[base + Int(CPU_STATE_NICE)])
+            // `integer_t` (Int32) tick counters increase monotonically and can
+            // exceed Int32.max on long-uptime machines, arriving here as negative
+            // values. `UInt32(bitPattern:)` reinterprets the bits without trapping
+            // (a plain `UInt32(_:)` conversion would crash); the Int64 delta math
+            // in computeSnapshot then handles the unsigned wrap-around.
+            let user = UInt32(bitPattern: cpuInfo[base + Int(CPU_STATE_USER)])
+            let system = UInt32(bitPattern: cpuInfo[base + Int(CPU_STATE_SYSTEM)])
+            let idle = UInt32(bitPattern: cpuInfo[base + Int(CPU_STATE_IDLE)])
+            let nice = UInt32(bitPattern: cpuInfo[base + Int(CPU_STATE_NICE)])
 
             output.append(TickSample(user: user, system: system, idle: idle, nice: nice))
         }

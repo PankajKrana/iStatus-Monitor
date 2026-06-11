@@ -36,7 +36,7 @@ final class HistoryViewModel {
     var customStart: Date = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
     var customEnd: Date = Date()
 
-    var records: [MetricRecord] = []
+    var records: [MetricSample] = []
     var stats: (min: Double, max: Double, avg: Double, p95: Double) = (0, 0, 0, 0)
 
     var showRawRecords = false
@@ -83,7 +83,7 @@ final class HistoryViewModel {
                 try? content.write(to: url, atomically: true, encoding: .utf8)
             case .json:
                 let payload = data.map {
-                    ExportRow(timestamp: $0.timestamp, metric: $0.metricType, value: $0.value, metadata: $0.metadata)
+                    ExportRow(timestamp: $0.timestamp, metric: $0.metricType, value: $0.value)
                 }
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -121,7 +121,7 @@ final class HistoryViewModel {
         return sorted[max(0, min(rank, sorted.count - 1))]
     }
 
-    private func makeCSV(records: [MetricRecord]) -> String {
+    private func makeCSV(records: [MetricSample]) -> String {
         var lines = ["timestamp,metric,value"]
         let formatter = ISO8601DateFormatter()
 
@@ -139,7 +139,6 @@ final class HistoryViewModel {
         let timestamp: Date
         let metric: String
         let value: Double
-        let metadata: Data?
     }
 }
 
@@ -196,7 +195,7 @@ struct HistoryView: View {
             Toggle("Show raw records", isOn: $viewModel.showRawRecords)
 
             if viewModel.showRawRecords {
-                List(viewModel.records, id: \.persistentModelID) { row in
+                List(viewModel.records) { row in
                     HStack {
                         Text(row.timestamp.formatted(date: .abbreviated, time: .standard))
                         Spacer()

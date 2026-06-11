@@ -48,17 +48,32 @@ actor BatteryMonitor {
             return nil
         }
 
-        let current = value(raw, keys: ["CurrentCapacity", "AppleRawCurrentCapacity"]) ?? 0
-        let maxCapacity = value(raw, keys: ["MaxCapacity"]) ?? current
-        let design = value(raw, keys: ["DesignCapacity", "DesignCycleCount9C"]) ?? maxCapacity
+        // Raw mAh capacities — the values that are actually in milliamp-hours.
+        // On modern macOS `MaxCapacity`/`CurrentCapacity` are a *percentage* pair
+        // (MaxCapacity == 100), so health must use AppleRaw*Capacity, not them,
+        // and `DesignCycleCount9C` is a cycle rating — never a capacity.
+        let rawCurrent = value(raw, keys: ["AppleRawCurrentCapacity"]) ?? 0
+        let rawMax = value(raw, keys: ["AppleRawMaxCapacity", "NominalChargeCapacity"]) ?? rawCurrent
+        let design = value(raw, keys: ["DesignCapacity"]) ?? rawMax
         let cycleCount = value(raw, keys: ["CycleCount"]) ?? 0
         let voltage = value(raw, keys: ["Voltage"]) ?? 0
         let amperage = value(raw, keys: ["Amperage"]) ?? 0
         let temperatureRaw = value(raw, keys: ["Temperature"]) ?? 0
 
-        let chargePercentFromSmartBattery = maxCapacity > 0 ? (Double(current) / Double(maxCapacity)) * 100 : nil
+        // Charge %: prefer the high-level IOPS reading; otherwise use the
+        // CurrentCapacity/MaxCapacity percentage pair when present, else the raw
+        // mAh ratio. Never divide a percentage by a mAh capacity.
+        let maxPercentPair = value(raw, keys: ["MaxCapacity"]) ?? 0
+        let smartChargePercent: Double?
+        if let currentPercent = value(raw, keys: ["CurrentCapacity"]), maxPercentPair > 0, maxPercentPair <= 100 {
+            smartChargePercent = (Double(currentPercent) / Double(maxPercentPair)) * 100
+        } else if rawMax > 0 {
+            smartChargePercent = (Double(rawCurrent) / Double(rawMax)) * 100
+        } else {
+            smartChargePercent = nil
+        }
         let fallbackLevel = readChargePercentFallback()
-        let chargePercent = fallbackLevel ?? chargePercentFromSmartBattery ?? 0
+        let chargePercent = fallbackLevel ?? smartChargePercent ?? 0
 
         let isCharging = (raw["IsCharging"] as? Bool) ?? false
         let isCharged = (raw["FullyCharged"] as? Bool) ?? false
@@ -82,7 +97,9 @@ actor BatteryMonitor {
         let tempF = (tempC * 9.0 / 5.0) + 32.0
 
         let watts = (Double(voltage) / 1000.0) * (Double(amperage) / 1000.0)
-        let healthPercent = design > 0 ? max(0, min(100, (Double(maxCapacity) / Double(design)) * 100.0)) : 0
+        // Health = full-charge capacity (AppleRawMaxCapacity, mAh) / design
+        // capacity (mAh). Both are genuine mAh values.
+        let healthPercent = design > 0 ? max(0, min(100, (Double(rawMax) / Double(design)) * 100.0)) : 0
 
         let serial = (raw["BatterySerialNumber"] as? String) ?? (raw["Serial"] as? String) ?? "Unknown"
         let now = Date()
@@ -92,7 +109,7 @@ actor BatteryMonitor {
 
         return BatterySnapshot(
             timestamp: now,
-            currentCapacitymAh: current,
+            currentCapacitymAh: rawCurrent,
             designCapacitymAh: design,
             healthPercent: healthPercent,
             cycleCount: cycleCount,

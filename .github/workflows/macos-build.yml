@@ -101,3 +101,27 @@ jobs:
           else
             build
           fi
+
+      - name: Test
+        run: |
+          set -o pipefail
+          # Runs the shared scheme's test action (Swift Testing) on macOS. Reuses
+          # the artifacts from the Build step, and fails the job on any test
+          # failure or compile error in the test target. Parallel testing is
+          # disabled: SystemMonitorServiceTests spin up real hardware-polling
+          # services, and running many concurrently contends on the SMC/IOKit.
+          test() {
+            xcodebuild test \
+              -project "$PROJECT" \
+              -scheme "$SCHEME" \
+              -configuration Debug \
+              -destination 'platform=macOS' \
+              -parallel-testing-enabled NO \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO
+          }
+          if command -v xcbeautify >/dev/null 2>&1; then
+            test | xcbeautify
+          else
+            test
+          fi
