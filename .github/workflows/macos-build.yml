@@ -36,8 +36,10 @@ jobs:
     name: Build (macOS)
     # iStatus Monitor targets macOS 26 (Tahoe) and requires the Xcode 26 SDK.
     # `macos-latest` currently maps to macOS 15 / Xcode 16, whose older SDK
-    # cannot build a macOS-26 deployment target. `macos-26` is the newest
-    # GitHub-hosted image and ships the Xcode 26 toolchain this project needs.
+    # cannot build a macOS-26 target. `macos-26` is the newest GitHub-hosted
+    # image and ships the Xcode 26 toolchain this project needs. The project's
+    # deployment target is 26.0 (not 26.x.y) so the test bundle can actually run
+    # on the runner's OS — testing requires deployment target <= runner macOS.
     runs-on: macos-26
 
     steps:
@@ -45,12 +47,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode 26.5
-        # The project's deployment target is macOS 26.5, so the SDK must be
-        # >= 26.5. The macos-26 image's *default* Xcode is 26.4.1 (SDK 26.4),
-        # which is older than the target and would re-trigger spurious
-        # "result builder ... sufficient availability" errors. Pin 26.5
-        # explicitly so the SDK matches the deployment target exactly.
-        run: sudo xcode-select -switch /Applications/Xcode_26.5.app
+        # Pin the newest Xcode 26 on the image for a stable, reproducible SDK
+        # (the macos-26 default has historically been an earlier 26.x). Any
+        # Xcode-26 SDK satisfies the 26.0 deployment target; 26.5 also matches
+        # the local dev toolchain. Falls back to the default Xcode if 26.5 is
+        # ever dropped from the image, so the build doesn't break on rotation.
+        run: |
+          if [ -d /Applications/Xcode_26.5.app ]; then
+            sudo xcode-select -switch /Applications/Xcode_26.5.app
+          else
+            echo "Xcode_26.5.app not found; using image default $(xcode-select -p)"
+          fi
 
       - name: Show build environment
         run: |
