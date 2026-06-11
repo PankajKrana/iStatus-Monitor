@@ -9,7 +9,7 @@ struct OnboardingSheet: View {
         VStack(spacing: 0) {
             TabView(selection: $currentPage) {
                 page(
-                    title: "Welcome to PulseKit",
+                    title: "Welcome to iStatus Monitor",
                     subtitle: "Real-time monitoring for CPU, Memory, Network, GPU, Thermal, and Battery.",
                     symbol: "waveform.path.ecg.rectangle",
                     tint: .blue

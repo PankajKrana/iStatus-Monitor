@@ -48,13 +48,42 @@ actor GPUMonitor {
 
         result.append(contentsOf: scanService(className: "IOPCIDevice"))
         result.append(contentsOf: scanService(className: "AGPMController"))
+        // Apple Silicon GPUs expose utilization under the IOAccelerator /
+        // AGXAccelerator service (PerformanceStatistics → "Device Utilization %"),
+        // never under IOPCIDevice — without this, util was always 0 on M-series.
+        result.append(contentsOf: scanService(className: "IOAccelerator"))
 
+        // Collapse entries describing the same GPU (e.g. an IOAccelerator nub and
+        // a Metal device, or duplicate accelerator nubs) by name, merging so the
+        // entry that actually carries utilization / VRAM wins.
         var dedup: [String: GPUStats] = [:]
         for gpu in result where shouldKeep(gpu: gpu) {
-            dedup[gpu.id] = gpu
+            let key = gpu.name.lowercased()
+            if let existing = dedup[key] {
+                dedup[key] = merge(existing, gpu)
+            } else {
+                dedup[key] = gpu
+            }
         }
 
         return Array(dedup.values).sorted { $0.name < $1.name }
+    }
+
+    private func merge(_ a: GPUStats, _ b: GPUStats) -> GPUStats {
+        GPUStats(
+            id: a.id,
+            name: a.name,
+            vendor: a.vendor != "Unknown" ? a.vendor : b.vendor,
+            utilizationPercent: max(a.utilizationPercent, b.utilizationPercent),
+            vramTotalMB: a.vramTotalMB ?? b.vramTotalMB,
+            vramUsedMB: a.vramUsedMB ?? b.vramUsedMB,
+            temperatureCelsius: a.temperatureCelsius ?? b.temperatureCelsius,
+            metalDeviceName: a.metalDeviceName ?? b.metalDeviceName,
+            isLowPower: a.isLowPower ?? b.isLowPower,
+            isRemovable: a.isRemovable ?? b.isRemovable,
+            recommendedMaxWorkingSetSize: a.recommendedMaxWorkingSetSize ?? b.recommendedMaxWorkingSetSize,
+            isIntegrated: a.isIntegrated || b.isIntegrated
+        )
     }
 
     private func scanService(className: String) -> [GPUStats] {
@@ -76,17 +105,23 @@ actor GPUMonitor {
             let vendorName = vendorFrom(vendorID: vendorID, fallback: model)
 
             let perf = properties["PerformanceStatistics"] as? [String: Any]
-            let rendererUtil = doubleValue(perf, keys: ["Renderer Utilization", "GPU Core Utilization", "Device Utilization %"])
-            let tilerUtil = doubleValue(perf, keys: ["Tiler Utilization"])
+            // Apple Silicon reports "%"-suffixed keys ("Device/Renderer/Tiler
+            // Utilization %"); Intel/AMD use the unsuffixed names. Prefer the
+            // single overall "Device Utilization %" when present.
+            let deviceUtil = doubleValue(perf, keys: ["Device Utilization %", "GPU Activity(%)"])
+            let rendererUtil = doubleValue(perf, keys: ["Renderer Utilization %", "Renderer Utilization", "GPU Core Utilization"])
+            let tilerUtil = doubleValue(perf, keys: ["Tiler Utilization %", "Tiler Utilization"])
             let util: Double
-            if let rendererUtil, let tilerUtil {
+            if let deviceUtil {
+                util = max(0, min(100, deviceUtil))
+            } else if let rendererUtil, let tilerUtil {
                 util = max(0, min(100, (rendererUtil + tilerUtil) / 2))
             } else {
-                util = rendererUtil ?? tilerUtil ?? 0
+                util = max(0, min(100, rendererUtil ?? tilerUtil ?? 0))
             }
 
             let vramTotal = intValue(properties, keys: ["VRAM,totalMB", "vram-total-mb", "VRAM Total"])
-            let vramUsed = intValue(perf, keys: ["VRAM Used", "In Use VidMem", "vramUsedBytes"]).map { raw in
+            let vramUsed = intValue(perf, keys: ["VRAM Used", "In Use VidMem", "vramUsedBytes", "In use system memory"]).map { raw in
                 if raw > 1024 * 1024 { return raw / (1024 * 1024) }
                 return raw
             }

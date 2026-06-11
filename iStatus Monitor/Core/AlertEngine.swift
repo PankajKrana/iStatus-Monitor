@@ -146,7 +146,7 @@ actor AlertEngine {
         await requestAuthorizationIfNeeded()
 
         for rule in rules where rule.isEnabled {
-            guard let value = metricValue(for: rule.metric, in: snapshot) else { continue }
+            guard let value = metricValue(for: rule.metric, in: snapshot), value.isFinite else { continue }
             guard shouldTrigger(rule: rule, value: value, snapshot: snapshot, interval: interval) else { continue }
             guard isCooldownSatisfied(for: rule) else { continue }
 
@@ -205,7 +205,12 @@ actor AlertEngine {
         case .temperature:
             return snapshot.thermalSnapshot?.sensors.map(\.celsius).max()
         case .battery:
-            return snapshot.battery.levelPercent
+            // Read from the optional detailed snapshot so machines without a
+            // battery (desktops) or a failed read (nil) skip battery rules
+            // entirely, instead of comparing a synthesized 0% against a "below"
+            // threshold and firing a false low-battery alert. This also matches
+            // the source used by the charging-suppression guard above.
+            return snapshot.batterySnapshot?.chargePercent
         case .network:
             let kbps = Double(snapshot.network.bytesInPerSecond + snapshot.network.bytesOutPerSecond) / 1024
             return kbps

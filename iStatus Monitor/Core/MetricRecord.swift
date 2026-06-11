@@ -6,18 +6,25 @@ final class MetricRecord {
     var timestamp: Date
     var metricType: String
     var value: Double
-    var metadata: Data?
 
-    init(timestamp: Date, metricType: String, value: Double, metadata: Data? = nil) {
+    init(timestamp: Date, metricType: String, value: Double) {
         self.timestamp = timestamp
         self.metricType = metricType
         self.value = value
-        self.metadata = metadata
     }
 }
 
-// SwiftData models are thread-safe through exclusive access isolation.
-// We conform to Sendable to allow this model to cross actor boundaries safely.
-// This is a justified use of @unchecked Sendable: the model is internally
-// synchronized by SwiftData's isolation mechanism.
-extension MetricRecord: @unchecked Sendable {}
+/// Immutable, `Sendable` value type representing one persisted metric sample.
+///
+/// SwiftData `@Model` objects are bound to the `ModelContext` (and its actor)
+/// that created them and must not be read from another isolation domain, so
+/// `HistoryStore` maps its rows to this DTO before returning them across the
+/// actor boundary. This replaces the previous `@unchecked Sendable` conformance
+/// on `MetricRecord`, which let live model objects escape the store's actor.
+struct MetricSample: Sendable, Identifiable, Equatable {
+    let timestamp: Date
+    let metricType: String
+    let value: Double
+
+    var id: Date { timestamp }
+}

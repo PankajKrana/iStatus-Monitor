@@ -56,6 +56,13 @@ actor SystemMonitorService {
     func start(appState: AppState, interval: Duration = .seconds(1)) {
         guard loopTask == nil else { return }
 
+        // Seconds per tick, derived from the actual loop interval so sustained
+        // ("for Ns") alert rules measure wall-clock time correctly even when the
+        // sampling interval differs from the 1s default (previously evaluate()
+        // always assumed its 1s default, drifting if the interval changed).
+        let intervalSeconds = Double(interval.components.seconds)
+            + Double(interval.components.attoseconds) / 1_000_000_000_000_000_000
+
         loopTask = Task {
             await MainActor.run { appState.isMonitoring = true }
             await alertEngine.requestAuthorizationIfNeeded()
@@ -96,7 +103,7 @@ actor SystemMonitorService {
 
                 await dataStore.persist(snapshot)
                 await historyStore?.ingest(snapshot)
-                await alertEngine.evaluate(snapshot)
+                await alertEngine.evaluate(snapshot, interval: intervalSeconds)
                 await batteryAlertService.evaluate(snapshot.batterySnapshot)
 
                 do {

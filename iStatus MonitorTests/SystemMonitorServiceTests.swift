@@ -4,6 +4,19 @@ import Testing
 
 @MainActor
 struct SystemMonitorServiceTests {
+    /// Polls `condition` until it holds or `timeout` elapses. The monitoring loop
+    /// samples real hardware asynchronously, so a single fixed `Task.sleep` races
+    /// under load / parallel execution; polling makes these assertions
+    /// deterministic while testing the same behavior.
+    private func eventually(timeout: Duration = .seconds(5), _ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return condition()
+    }
+
     @Test("service initializes successfully")
     func serviceInitialization() {
         let service = SystemMonitorService()
@@ -35,9 +48,8 @@ struct SystemMonitorServiceTests {
         #expect(!appState.isMonitoring)
 
         await service.start(appState: appState, interval: .milliseconds(50))
-        try await Task.sleep(nanoseconds: 10_000_000)
 
-        #expect(appState.isMonitoring)
+        #expect(await eventually { appState.isMonitoring })
 
         await service.stop()
     }
@@ -79,9 +91,7 @@ struct SystemMonitorServiceTests {
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        try await Task.sleep(nanoseconds: 150_000_000)
-
-        #expect(appState.cpu.coreCount > 0)
+        #expect(await eventually { appState.cpu.coreCount > 0 })
 
         await service.stop()
     }
@@ -92,7 +102,7 @@ struct SystemMonitorServiceTests {
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
-        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(await eventually { appState.isMonitoring })
 
         appState.isMonitoringPaused = true
         try await Task.sleep(nanoseconds: 100_000_000)
@@ -109,7 +119,7 @@ struct SystemMonitorServiceTests {
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
-        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(await eventually { appState.isMonitoring })
 
         appState.isMonitoringPaused = true
         try await Task.sleep(nanoseconds: 100_000_000)
@@ -204,9 +214,7 @@ struct SystemMonitorServiceTests {
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        try await Task.sleep(nanoseconds: 200_000_000)
-
-        #expect(appState.isMonitoring)
+        #expect(await eventually { appState.isMonitoring })
 
         await service.stop()
     }
@@ -218,7 +226,7 @@ struct SystemMonitorServiceTests {
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        try await Task.sleep(nanoseconds: 150_000_000)
+        _ = await eventually { appState.cpu.coreCount > 0 }
 
         let cpuUsage = appState.cpu.usagePercent
         let memUsage = appState.ram.usedPercent
@@ -235,13 +243,11 @@ struct SystemMonitorServiceTests {
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
-        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(await eventually { appState.isMonitoring })
 
         await service.stop()
 
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        #expect(!appState.isMonitoring || appState.isMonitoringPaused)
+        #expect(await eventually { !appState.isMonitoring || appState.isMonitoringPaused })
     }
 
     @Test("full monitoring cycle works")
@@ -268,9 +274,7 @@ struct SystemMonitorServiceTests {
         try await Task.sleep(nanoseconds: 50_000_000)
 
         appState.isMonitoringPaused = false
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        #expect(appState.isMonitoring)
+        #expect(await eventually { appState.isMonitoring })
 
         let history = await alertEngine.getHistory()
         let rules = await alertEngine.getRules()
@@ -279,8 +283,7 @@ struct SystemMonitorServiceTests {
 
         await service.stop()
 
-        try await Task.sleep(nanoseconds: 50_000_000)
-        #expect(!appState.isMonitoring)
+        #expect(await eventually { !appState.isMonitoring })
     }
 
     @Test("monitor operates efficiently at 1 second interval")
