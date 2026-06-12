@@ -3,18 +3,12 @@ import SwiftUI
 struct SettingsView: View {
     let widgetManager: WidgetManager
     @Bindable var menuBarSettings: MenuBarSettings
+    let monitorService: SystemMonitorService
 
     @State private var selectedSection: SettingsSection = .general
 
     @AppStorage("defaultTab") private var defaultTab: String = NavigationTab.dashboard.rawValue
     @AppStorage("updateInterval") private var updateInterval: Double = 1.0
-    @AppStorage("compactLayout") private var compactLayout: Bool = false
-
-    @AppStorage("cpuNotifications") private var cpuNotifications: Bool = true
-    @AppStorage("memoryNotifications") private var memoryNotifications: Bool = true
-    @AppStorage("networkNotifications") private var networkNotifications: Bool = true
-    @AppStorage("thermalNotifications") private var thermalNotifications: Bool = true
-    @AppStorage("batteryNotifications") private var batteryNotifications: Bool = true
 
     @AppStorage("accentRed") private var accentRed: Double = 0.15
     @AppStorage("accentGreen") private var accentGreen: Double = 0.50
@@ -24,7 +18,6 @@ struct SettingsView: View {
         case general
         case appearance
         case menuBar
-        case notifications
         case about
 
         var id: String { rawValue }
@@ -34,7 +27,6 @@ struct SettingsView: View {
             case .general: "General"
             case .appearance: "Appearance"
             case .menuBar: "Menu Bar"
-            case .notifications: "Notifications"
             case .about: "About"
             }
         }
@@ -44,7 +36,6 @@ struct SettingsView: View {
             case .general: "gearshape"
             case .appearance: "paintpalette"
             case .menuBar: "menubar.rectangle"
-            case .notifications: "bell.badge"
             case .about: "info.circle"
             }
         }
@@ -64,6 +55,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(minWidth: 760, minHeight: 520)
+        .tint(Color(red: accentRed, green: accentGreen, blue: accentBlue))
     }
 
     @ViewBuilder
@@ -72,7 +64,6 @@ struct SettingsView: View {
         case .general: generalSettings
         case .appearance: appearanceSettings
         case .menuBar: MenuBarSettingsPanel(widgetManager: widgetManager, menuBarSettings: menuBarSettings)
-        case .notifications: notificationsSettings
         case .about: aboutSettings
         }
     }
@@ -105,31 +96,16 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding(16)
+        .onChange(of: updateInterval) { _, newValue in
+            // Apply the new cadence immediately by restarting the sampling loop.
+            Task { await monitorService.updateInterval(.seconds(newValue)) }
+        }
     }
 
     private var appearanceSettings: some View {
         Form {
             Section("Appearance") {
                 ColorPicker("Accent color", selection: accentBinding, supportsOpacity: false)
-                Picker("Layout", selection: $compactLayout) {
-                    Text("Expanded").tag(false)
-                    Text("Compact").tag(true)
-                }
-                .pickerStyle(.segmented)
-            }
-        }
-        .formStyle(.grouped)
-        .padding(16)
-    }
-
-    private var notificationsSettings: some View {
-        Form {
-            Section("Per-metric alerts") {
-                Toggle("CPU", isOn: $cpuNotifications)
-                Toggle("Memory", isOn: $memoryNotifications)
-                Toggle("Network", isOn: $networkNotifications)
-                Toggle("Thermal", isOn: $thermalNotifications)
-                Toggle("Battery", isOn: $batteryNotifications)
             }
         }
         .formStyle(.grouped)
@@ -178,6 +154,7 @@ struct SettingsView: View {
             registry: WidgetRegistry(widgets: WidgetRegistry.builtInWidgets()),
             configurationStore: WidgetConfigurationStore()
         ),
-        menuBarSettings: MenuBarSettings()
+        menuBarSettings: MenuBarSettings(),
+        monitorService: SystemMonitorService()
     )
 }
