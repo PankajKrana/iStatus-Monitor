@@ -1,0 +1,217 @@
+name: Release
+
+# Continuous Delivery for iStatus Monitor (macOS SwiftUI app).
+#
+# Trigger: ONLY a pushed tag matching `v*` (e.g. v1.0.0, v1.1.0, v2.0.0).
+# It does NOT run on branch pushes, pull requests, `develop`, or feature/*.
+# That keeps it fully separate from the CI workflow (macos-build.yml), which
+# runs on `develop` pushes and PRs and never on tags — so there is no overlap,
+# no duplicate logic, and no conflicting jobs between the two workflows.
+#
+# Flow on a tag:
+#   tag v* -> Test (Debug) -> Archive (Release) -> Build DMG -> GitHub Release
+#
+# Signing/notarization are intentionally NOT implemented yet. The archive runs
+# with CODE_SIGNING_ALLOWED=NO. Hooks for Developer ID signing + notarization +
+# stapling are described where they will slot in (see comments below).
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Only one release per tag may run at a time. Do not cancel an in-progress
+# release midway (a half-uploaded asset is worse than waiting), so no
+# cancel-in-progress here.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Least privilege. Creating a Release and uploading the DMG asset requires
+# write access to repository contents; nothing else is needed.
+permissions:
+  contents: write
+
+env:
+  PROJECT: "iStatus Monitor.xcodeproj"
+  SCHEME: "iStatus Monitor"
+  APP_NAME: "iStatus Monitor"          # produced .app bundle name
+  PRODUCT_PREFIX: "iStatus-Monitor"    # asset filename prefix
+
+jobs:
+  release:
+    name: Build, package & publish DMG
+    # Must match the CI runner: the app's deployment target is macOS 26.0, so an
+    # older image/SDK (macos-latest -> macOS 15 / Xcode 16) cannot archive it.
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.5
+        # Pin the same toolchain CI uses for a reproducible SDK; fall back to the
+        # image default if 26.5 is ever rotated out, so releases don't break.
+        run: |
+          if [ -d /Applications/Xcode_26.5.app ]; then
+            sudo xcode-select -switch /Applications/Xcode_26.5.app
+          else
+            echo "Xcode_26.5.app not found; using image default $(xcode-select -p)"
+          fi
+
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          swift --version
+          echo "Releasing tag: ${GITHUB_REF_NAME}"
+
+      - name: Resolve Swift packages
+        # No-op today (no SPM deps) but surfaces resolution errors as a distinct
+        # step if dependencies are added later.
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
+
+      - name: Test (Debug)
+        # Tests run in Debug because the test target uses `@testable import`,
+        # which requires ENABLE_TESTABILITY=YES — set only on the Debug config in
+        # this project (Release has it off). This mirrors the proven CI test
+        # invocation exactly: same destination, parallel testing disabled because
+        # the monitor-service tests poll real SMC/IOKit hardware and contend when
+        # run concurrently. A test failure fails the job before we package.
+        run: |
+          set -o pipefail
+          test() {
+            xcodebuild test \
+              -project "$PROJECT" \
+              -scheme "$SCHEME" \
+              -configuration Debug \
+              -destination 'platform=macOS' \
+              -parallel-testing-enabled NO \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO
+          }
+          if command -v xcbeautify >/dev/null 2>&1; then
+            test | xcbeautify
+          else
+            test
+          fi
+
+      - name: Archive (Release)
+        # Archiving in Release IS the Release build — it compiles the app target
+        # with the Release configuration and produces a .xcarchive containing the
+        # final iStatus Monitor.app. Unsigned for now (CODE_SIGNING_ALLOWED=NO).
+        #
+        # FUTURE (signing): replace the CODE_SIGNING_ALLOWED=NO line with real
+        # signing settings once a Developer ID cert is available, e.g.
+        #   CODE_SIGN_STYLE=Manual
+        #   CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+        #   OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
+        # (the import-codesigning + notarize steps would be added after this).
+        run: |
+          set -o pipefail
+          archive() {
+            xcodebuild archive \
+              -project "$PROJECT" \
+              -scheme "$SCHEME" \
+              -configuration Release \
+              -destination 'generic/platform=macOS' \
+              -archivePath "$RUNNER_TEMP/iStatusMonitor.xcarchive" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGN_ENTITLEMENTS=""
+          }
+          if command -v xcbeautify >/dev/null 2>&1; then
+            archive | xcbeautify
+          else
+            archive
+          fi
+
+      - name: Export .app from archive
+        # Pull the built bundle out of the archive into a clean staging dir that
+        # contains ONLY the app — this becomes the DMG source so no stray files
+        # leak into the disk image.
+        run: |
+          set -euo pipefail
+          APP_SRC="$RUNNER_TEMP/iStatusMonitor.xcarchive/Products/Applications/${APP_NAME}.app"
+          if [ ! -d "$APP_SRC" ]; then
+            echo "::error::Archived app not found at $APP_SRC"
+            ls -R "$RUNNER_TEMP/iStatusMonitor.xcarchive/Products" || true
+            exit 1
+          fi
+          STAGING="$RUNNER_TEMP/dmg-staging"
+          rm -rf "$STAGING"
+          mkdir -p "$STAGING"
+          cp -R "$APP_SRC" "$STAGING/"
+          echo "STAGING=$STAGING" >> "$GITHUB_ENV"
+
+          # FUTURE (notarization): after signing, notarize + staple here:
+          #   xcrun notarytool submit <zip-of-app> --apple-id ... --team-id ... \
+          #     --password "$APP_SPECIFIC_PASSWORD" --wait
+          #   xcrun stapler staple "$STAGING/${APP_NAME}.app"
+
+      - name: Build DMG
+        # Produces: iStatus-Monitor-<tag>.dmg containing the app + an Applications
+        # shortcut for drag-to-install. Primary path uses create-dmg (purpose
+        # built, gives a clean layout). If its AppleScript window styling ever
+        # fails on a headless runner, we fall back to a pure `hdiutil` image with
+        # an Applications symlink — guaranteed to work with no GUI dependency.
+        run: |
+          set -euo pipefail
+          DMG_NAME="${PRODUCT_PREFIX}-${GITHUB_REF_NAME}.dmg"
+          DMG_PATH="$RUNNER_TEMP/$DMG_NAME"
+          echo "DMG_NAME=$DMG_NAME" >> "$GITHUB_ENV"
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+
+          brew install create-dmg || true
+
+          make_with_create_dmg() {
+            create-dmg \
+              --volname "${APP_NAME}" \
+              --window-pos 200 120 \
+              --window-size 600 360 \
+              --icon-size 120 \
+              --icon "${APP_NAME}.app" 160 180 \
+              --hide-extension "${APP_NAME}.app" \
+              --app-drop-link 440 180 \
+              --no-internet-enable \
+              "$DMG_PATH" \
+              "$STAGING"
+          }
+
+          make_with_hdiutil() {
+            echo "create-dmg failed; falling back to hdiutil"
+            ln -sf /Applications "$STAGING/Applications"
+            rm -f "$DMG_PATH"
+            hdiutil create \
+              -volname "${APP_NAME}" \
+              -srcfolder "$STAGING" \
+              -fs HFS+ \
+              -format UDZO \
+              -ov \
+              "$DMG_PATH"
+          }
+
+          if command -v create-dmg >/dev/null 2>&1 && make_with_create_dmg; then
+            echo "DMG built with create-dmg"
+          else
+            make_with_hdiutil
+          fi
+
+          echo "Built $DMG_PATH"
+          ls -lh "$DMG_PATH"
+
+      - name: Publish GitHub Release
+        # Creates the release for this tag if it doesn't exist (or updates it) and
+        # uploads the DMG. Other releases are untouched. fail_on_unmatched_files
+        # guarantees we never publish an empty release if the DMG path is wrong.
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: ${{ env.DMG_PATH }}
