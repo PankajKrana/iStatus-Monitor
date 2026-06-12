@@ -1,12 +1,14 @@
+
+
 <div align="center">
 
-# 📊 iStatus Monitor
+# <img width="28" height="28" alt="iStatus Monitor" src="https://github.com/user-attachments/assets/200cdccc-97a1-4e7f-afe8-fd78da36d86b" /> iStatus Monitor
 
 ### A native macOS menu bar system monitor built with SwiftUI & SwiftData
 
 [![Platform](https://img.shields.io/badge/platform-macOS-blue?logo=apple)](https://www.apple.com/macos/)
 [![macOS](https://img.shields.io/badge/macOS-26%20Tahoe-black?logo=apple)](https://www.apple.com/macos/)
-[![Swift](https://img.shields.io/badge/Swift-5-orange?logo=swift)](https://swift.org)
+[![Swift](https://img.shields.io/badge/Swift-6-orange?logo=swift)](https://swift.org)
 [![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-0a84ff?logo=swift)](https://developer.apple.com/xcode/swiftui/)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-ready-success?logo=apple)](https://support.apple.com/en-us/HT211814)
 [![License](https://img.shields.io/badge/license-MIT-green)](#-license)
@@ -57,17 +59,27 @@ Built entirely with **SwiftUI**, **Swift Concurrency**, and **SwiftData**, it fa
 
 ## 🖼️ Screenshots
 
+### Menu Bar Experience
 
-| Menu Bar (Compact) | Menu Bar (Module Popover) |
+| Compact Mode | Module Popover |
 | :---: | :---: |
-| ![Compact menu bar](docs/screenshots/menubar-compact.png) | ![Module popover](docs/screenshots/menubar-module.png) |
+| <img width="230" alt="Compact" src="https://github.com/user-attachments/assets/34413578-ae1a-4795-a492-074ab781daee" /> | <img width="316" alt="Module1" src="https://github.com/user-attachments/assets/4de5772a-f1ef-4000-8c02-7420db5e50a2" /> |
 
-| Dashboard | Settings |
-| :---: | :---: |
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Settings](docs/screenshots/settings.png) |
+### Monitoring Modules
+
+| CPU & Memory | Network | Battery & Thermal |
+| :---: | :---: | :---: |
+| <img width="316" alt="Module1" src="https://github.com/user-attachments/assets/4de5772a-f1ef-4000-8c02-7420db5e50a2" /> | <img width="314" alt="Module2" src="https://github.com/user-attachments/assets/a267524a-90cc-4d9c-a11f-8615ab58b024" /> | <img width="313" alt="Module3" src="https://github.com/user-attachments/assets/9405f286-eaae-4f31-a58f-cc15f9c4100c" /> |
+
+### Dashboard
+
+<img width="1100" alt="Dashboard" src="https://github.com/user-attachments/assets/87102bb2-2c0d-4807-b33b-ffbae83eed71" />
+
+### Settings
+
+<img width="891" alt="Settings" src="https://github.com/user-attachments/assets/5adc8cfb-92c5-42f2-b4e3-d41441adeab2" />
 
 ---
-
 ## 🏗️ Architecture Overview
 
 iStatus Monitor uses a **single-source-of-truth, observation-driven** design. One background actor samples all hardware on a fixed interval and publishes to an `@Observable` state model; every UI surface re-renders automatically — no per-view timers, no duplicated state.
