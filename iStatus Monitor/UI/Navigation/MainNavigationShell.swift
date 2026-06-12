@@ -10,6 +10,11 @@ struct MainNavigationShell: View {
     @SceneStorage("last-selected-tab") private var lastSelectedTab: String = NavigationTab.dashboard.rawValue
     @SceneStorage("main-window-frame") private var windowFrameStorage: String = ""
 
+    // User-chosen accent, applied app-wide via `.tint` (Settings → Appearance).
+    @AppStorage("accentRed") private var accentRed: Double = 0.15
+    @AppStorage("accentGreen") private var accentGreen: Double = 0.50
+    @AppStorage("accentBlue") private var accentBlue: Double = 0.95
+
     @State private var selectedTab: NavigationTab = .dashboard
     @State private var searchText: String = ""
     @State private var showOnboarding: Bool = false
@@ -60,6 +65,7 @@ struct MainNavigationShell: View {
             }
         }
         .frame(minWidth: 900, minHeight: 600)
+        .tint(Color(red: accentRed, green: accentGreen, blue: accentBlue))
         .background(WindowFrameBridge(frameStorage: $windowFrameStorage))
         .onAppear {
             restoreSelection()
