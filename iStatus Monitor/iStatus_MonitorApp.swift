@@ -132,16 +132,27 @@ struct iStatus_MonitorApp: App {
         // manually opened the dashboard. `start()` is idempotent (guards on
         // `loopTask == nil`), so the redundant `.task` below is harmless.
         let service = monitorService
+        let launchInterval = Self.storedUpdateInterval()
         appDelegate.onFinishLaunching = {
-            Task { await service.start(appState: appState) }
+            Task { await service.start(appState: appState, interval: launchInterval) }
         }
+    }
+
+    /// The persisted Settings "Update interval" (seconds), as a `Duration`, used
+    /// so the saved cadence applies from launch — not just after the slider is
+    /// touched. Defaults to 1s, matching the Settings default, and clamps to the
+    /// slider's 0.5–5s range.
+    private static func storedUpdateInterval() -> Duration {
+        let stored = UserDefaults.standard.object(forKey: "updateInterval") as? Double ?? 1.0
+        let clamped = min(max(stored, 0.5), 5.0)
+        return .seconds(clamped)
     }
 
     var body: some Scene {
         WindowGroup(id: Self.dashboardWindowID) {
             MainNavigationShell(appState: appState, alertsStore: alertsStore, historyViewModel: historyViewModel)
                 .task {
-                    await monitorService.start(appState: appState)
+                    await monitorService.start(appState: appState, interval: Self.storedUpdateInterval())
                 }
                 .onAppear {
                     // Re-apply the saved Dock-icon policy here, not in
@@ -161,7 +172,7 @@ struct iStatus_MonitorApp: App {
         MenuBarExtraScene(appState: appState, widgetManager: widgetManager)
 
         Settings {
-            SettingsView(widgetManager: widgetManager, menuBarSettings: menuBarSettings)
+            SettingsView(widgetManager: widgetManager, menuBarSettings: menuBarSettings, monitorService: monitorService)
         }
 
         .commands {

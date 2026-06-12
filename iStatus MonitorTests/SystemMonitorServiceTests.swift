@@ -318,4 +318,34 @@ struct SystemMonitorServiceTests {
 
         #expect(true)
     }
+
+    @Test("updateInterval restarts the loop and keeps sampling")
+    func updateIntervalRestartsLoop() async throws {
+        let service = SystemMonitorService()
+        let appState = AppState()
+
+        await service.start(appState: appState, interval: .milliseconds(50))
+        #expect(await eventually { appState.isMonitoring })
+
+        // Change cadence at runtime — the loop should restart transparently and
+        // continue updating AppState at the new interval.
+        await service.updateInterval(.milliseconds(120))
+
+        // Capture a baseline, then confirm a fresh sample lands after the change.
+        let baseline = appState.lastUpdated
+        let resampled = await eventually(timeout: .seconds(2)) {
+            appState.isMonitoring && appState.lastUpdated != baseline
+        }
+        #expect(resampled)
+
+        await service.stop()
+    }
+
+    @Test("updateInterval before start is a no-op that does not crash")
+    func updateIntervalBeforeStart() async throws {
+        let service = SystemMonitorService()
+        // No active AppState yet — should simply record the interval, not start.
+        await service.updateInterval(.milliseconds(200))
+        #expect(true)
+    }
 }

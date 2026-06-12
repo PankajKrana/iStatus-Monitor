@@ -22,6 +22,18 @@ actor SystemMonitorService {
 
     private var loopTask: Task<Void, Never>?
 
+    /// Retained so the sampling interval can be changed at runtime (Settings →
+    /// Update interval) by restarting the loop against the same state. Set on
+    /// `start`, cleared on `stop`.
+    private weak var activeAppState: AppState?
+    private var activeInterval: Duration = .seconds(1)
+
+    /// Incremented on every `start`. Each loop captures its generation and only
+    /// writes the terminal `isMonitoring = false` if it is still the current
+    /// generation — so a cancelled loop being torn down by `updateInterval`'s
+    /// stop→start cannot stomp the freshly-started loop's `isMonitoring = true`.
+    private var loopGeneration = 0
+
     init(
         cpuMonitor: CPUMonitor = CPUMonitor(),
         memoryMonitor: MemoryMonitor = MemoryMonitor(),
@@ -55,6 +67,12 @@ actor SystemMonitorService {
 
     func start(appState: AppState, interval: Duration = .seconds(1)) {
         guard loopTask == nil else { return }
+
+        // Retain for runtime interval changes (see `updateInterval`).
+        activeAppState = appState
+        activeInterval = interval
+        loopGeneration += 1
+        let generation = loopGeneration
 
         // Seconds per tick, derived from the actual loop interval so sustained
         // ("for Ns") alert rules measure wall-clock time correctly even when the
@@ -113,13 +131,40 @@ actor SystemMonitorService {
                 }
             }
 
-            await MainActor.run { appState.isMonitoring = false }
+            // Only the current generation may clear the flag. If a newer loop has
+            // already started (e.g. via updateInterval's stop→start), it owns
+            // `isMonitoring` and this stale loop must not flip it back to false.
+            if await self.isCurrentGeneration(generation) {
+                await MainActor.run { appState.isMonitoring = false }
+            }
         }
+    }
+
+    /// Whether `generation` is still the most recently started loop. Isolated to
+    /// the actor so the loop's terminal check reads a consistent value.
+    private func isCurrentGeneration(_ generation: Int) -> Bool {
+        generation == loopGeneration
     }
 
     func stop() {
         loopTask?.cancel()
         loopTask = nil
+    }
+
+    /// Change the sampling cadence at runtime (Settings → Update interval).
+    /// Restarts the loop against the same `AppState` so the new interval takes
+    /// effect immediately. No-op if monitoring was never started. The per-tick
+    /// alert timing recomputes from the new interval inside `start`, so sustained
+    /// ("for Ns") rules stay wall-clock-correct.
+    func updateInterval(_ interval: Duration) {
+        guard let appState = activeAppState else {
+            // Not running yet — just remember it for the next start.
+            activeInterval = interval
+            return
+        }
+        guard interval != activeInterval else { return }
+        stop()
+        start(appState: appState, interval: interval)
     }
 
     /// Nominal CPU frequency in GHz via sysctl. Returns `nil` on Apple Silicon
