@@ -90,18 +90,18 @@ Lives in the menu bar in either **compact** (one combined item) or **per-module*
 Threshold rules per metric (CPU, Memory, Temperature, Battery, Network) with
 sustained-condition triggering and a local alert history.
 
-<!-- Capture docs/images/alerts.png and uncomment this line — see docs/images/README.md
+
 <img width="891" alt="Alerts" src="docs/images/alerts.png" />
--->
+
 
 ### 📈 History
 
 Locally persisted time-series, charted as rolling sparklines so you can see a
 metric trend rather than just its current value.
 
-<!-- Capture docs/images/history.png and uncomment this line — see docs/images/README.md
+
 <img width="891" alt="History" src="docs/images/history.png" />
--->
+
 
 ### ⚙️ Settings
 
