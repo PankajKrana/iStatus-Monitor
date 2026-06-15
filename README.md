@@ -2,16 +2,18 @@
 
 <div align="center">
 
-# <img width="28" height="28" alt="iStatus Monitor" src="https://github.com/user-attachments/assets/200cdccc-97a1-4e7f-afe8-fd78da36d86b" /> iStatus Monitor
+# <img width="28" height="28" alt="iStatus Monitor" src="docs/images/app-icon.png" /> iStatus Monitor
 
 ### A native macOS menu bar system monitor built with SwiftUI & SwiftData
 
+[![macOS Build](https://github.com/PankajKrana/iStatus-Monitor/actions/workflows/macos-build.yml/badge.svg?branch=develop)](https://github.com/PankajKrana/iStatus-Monitor/actions/workflows/macos-build.yml)
+[![Release](https://github.com/PankajKrana/iStatus-Monitor/actions/workflows/release.yml/badge.svg)](https://github.com/PankajKrana/iStatus-Monitor/actions/workflows/release.yml)
 [![Platform](https://img.shields.io/badge/platform-macOS-blue?logo=apple)](https://www.apple.com/macos/)
 [![macOS](https://img.shields.io/badge/macOS-26%20Tahoe-black?logo=apple)](https://www.apple.com/macos/)
 [![Swift](https://img.shields.io/badge/Swift-6-orange?logo=swift)](https://swift.org)
 [![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-0a84ff?logo=swift)](https://developer.apple.com/xcode/swiftui/)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-ready-success?logo=apple)](https://support.apple.com/en-us/HT211814)
-[![License](https://img.shields.io/badge/license-MIT-green)](#-license)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Releases](https://img.shields.io/badge/download-GitHub%20Releases-181717?logo=github)](https://github.com/PankajKrana/iStatus-Monitor/releases)
 
 Live CPU, RAM, GPU, Network, SSD, Battery, and Thermal monitoring — directly from your macOS menu bar.
@@ -42,6 +44,12 @@ Built entirely with **SwiftUI**, **Swift Concurrency**, and **SwiftData**, it fa
 - **Process insights** — top CPU- and memory-consuming processes
 - **Network insights** — active connections, top network processes, and your public IP
 
+### 🔔 Alerts & History
+- **Threshold alerts** — per-metric rules (CPU, Memory, Temperature, Battery, Network) with warning/critical severity
+- **Sustained triggering** — fire only after a condition holds for *N* seconds, to suppress transient spikes
+- **Local notifications** — native banners via `UserNotifications`, plus an in-app alert history
+- **Time-series history** — metrics persisted locally with **SwiftData** and charted as rolling sparklines
+
 ### 🧩 Menu Bar Experience
 - **Compact mode** — a single combined status item with all enabled metrics
 - **Per-module mode** — one independent menu bar item per metric, individually toggleable
@@ -59,25 +67,47 @@ Built entirely with **SwiftUI**, **Swift Concurrency**, and **SwiftData**, it fa
 
 ## 🖼️ Screenshots
 
-### Menu Bar Experience
+> All image assets live in [`docs/images/`](docs/images). See the
+> [capture guide](docs/images/README.md) for the full screen-by-screen checklist.
 
-| Compact Mode | Module Popover |
-| :---: | :---: |
-| <img width="230" alt="Compact" src="https://github.com/user-attachments/assets/34413578-ae1a-4795-a492-074ab781daee" /> | <img width="316" alt="Module1" src="https://github.com/user-attachments/assets/4de5772a-f1ef-4000-8c02-7420db5e50a2" /> |
+### 🖥️ Dashboard
 
-### Monitoring Modules
+The full on-demand window — every monitored domain on one surface, live.
 
-| CPU & Memory | Network | Battery & Thermal |
-| :---: | :---: | :---: |
-| <img width="316" alt="Module1" src="https://github.com/user-attachments/assets/4de5772a-f1ef-4000-8c02-7420db5e50a2" /> | <img width="314" alt="Module2" src="https://github.com/user-attachments/assets/a267524a-90cc-4d9c-a11f-8615ab58b024" /> | <img width="313" alt="Module3" src="https://github.com/user-attachments/assets/9405f286-eaae-4f31-a58f-cc15f9c4100c" /> |
+<img width="1100" alt="iStatus Monitor dashboard" src="docs/images/dashboard.png" />
 
-### Dashboard
+### 📊 Menu Bar
 
-<img width="1100" alt="Dashboard" src="https://github.com/user-attachments/assets/87102bb2-2c0d-4807-b33b-ffbae83eed71" />
+Lives in the menu bar in either **compact** (one combined item) or **per-module**
+(one item per metric) mode, each with its own detail popover.
 
-### Settings
+| Compact Mode | CPU & Memory | Network | Battery & Thermal |
+| :---: | :---: | :---: | :---: |
+| <img width="230" alt="Compact menu bar" src="docs/images/menubar-compact.png" /> | <img width="316" alt="CPU & Memory popover" src="docs/images/module-cpu-memory.png" /> | <img width="314" alt="Network popover" src="docs/images/module-network.png" /> | <img width="313" alt="Battery & Thermal popover" src="docs/images/module-battery-thermal.png" /> |
 
-<img width="891" alt="Settings" src="https://github.com/user-attachments/assets/5adc8cfb-92c5-42f2-b4e3-d41441adeab2" />
+### 🔔 Alerts
+
+Threshold rules per metric (CPU, Memory, Temperature, Battery, Network) with
+sustained-condition triggering and a local alert history.
+
+<!-- Capture docs/images/alerts.png and uncomment this line — see docs/images/README.md
+<img width="891" alt="Alerts" src="docs/images/alerts.png" />
+-->
+
+### 📈 History
+
+Locally persisted time-series, charted as rolling sparklines so you can see a
+metric trend rather than just its current value.
+
+<!-- Capture docs/images/history.png and uncomment this line — see docs/images/README.md
+<img width="891" alt="History" src="docs/images/history.png" />
+-->
+
+### ⚙️ Settings
+
+Reorder widgets, choose display styles, pick layouts, and toggle launch-at-login.
+
+<img width="891" alt="Settings" src="docs/images/settings.png" />
 
 ---
 ## 🏗️ Architecture Overview
@@ -164,23 +194,44 @@ Then, in Xcode:
 
 ---
 
-## 📦 Release Installation
+## 📦 Release Installation (DMG)
 
-For most users — no Xcode required:
+For most users — no Xcode required. Releases ship as a `.dmg` built automatically
+from each `v*` tag by the [release workflow](.github/workflows/release.yml).
 
-1. **Download** the latest `iStatus Monitor.app.zip` from the [**Releases**](https://github.com/PankajKrana/iStatus-Monitor/releases) page.
-2. **Unzip** and **move** `iStatus Monitor.app` into your `/Applications` folder.
-
-   ```bash
-   mv ~/Downloads/"iStatus Monitor.app" /Applications/
-   ```
+1. **Download** the latest `iStatus-Monitor-vX.Y.Z.dmg` from the [**Releases**](https://github.com/PankajKrana/iStatus-Monitor/releases) page.
+2. **Open** the DMG and **drag** `iStatus Monitor.app` onto the **Applications** shortcut.
 
    > ⚠️ Launch at Login requires the app to live in a stable location. Always run it from `/Applications`, not from `~/Downloads` or a build folder.
 
-3. **Open** the app (right-click → **Open** on first launch if Gatekeeper prompts).
+3. **First launch — the app is not yet notarized.** Builds are currently
+   **unsigned** (no Apple Developer ID), so Gatekeeper will block a normal
+   double-click. To open it the first time:
+
+   - **Right-click** (or Control-click) `iStatus Monitor.app` → **Open** → confirm **Open** in the dialog, **or**
+   - if macOS still refuses, go to **System Settings → Privacy & Security**, scroll to the **Security** section, and click **Open Anyway** next to the iStatus Monitor warning.
+
+   You only need to do this once. macOS remembers the approval for that copy of the app.
+
+   <details>
+   <summary>Alternative: clear the quarantine flag from Terminal</summary>
+
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/iStatus Monitor.app"
+   ```
+
+   This removes the download-quarantine attribute that triggers the Gatekeeper
+   prompt. Only run it on a build you trust and downloaded yourself.
+   </details>
+
 4. **Enable Launch at Login**: click the menu bar item → **Settings… → General → Launch at login**.
 
 That's it — iStatus Monitor will now start automatically and run quietly in your menu bar.
+
+> 🔏 **Why unsigned?** Code signing and notarization require a paid Apple
+> Developer ID. The release pipeline already has the signing/notarization hooks
+> stubbed in ([`release.yml`](.github/workflows/release.yml)); once a certificate
+> is available, signed + notarized DMGs will install without the steps above.
 
 ---
 
@@ -190,7 +241,7 @@ That's it — iStatus Monitor will now start automatically and run quietly in yo
 | --- | --- |
 | 🍎 **macOS** | macOS 26 (Tahoe) or later |
 | 🧰 **Xcode** | Xcode 26 or later (to build from source) |
-| 🛠️ **Swift** | Swift 5 language mode (toolchain 6.x) |
+| 🛠️ **Swift** | Swift 6 language mode (toolchain 6.x) |
 | 💻 **Architecture** | Apple Silicon (arm64) |
 
 > Apple Silicon is fully supported. Some metrics (e.g. nominal CPU frequency) rely on Intel-only sysctls and are gracefully omitted on M-series Macs.
@@ -232,15 +283,34 @@ The test suite (`iStatus MonitorTests/`) covers the monitoring service, CPU samp
 
 ## 🤝 Contributing
 
-Contributions are welcome and appreciated! 🎉
+Contributions are welcome and appreciated! 🎉 Please read the full
+[**Contributing Guide**](CONTRIBUTING.md) before opening a PR — it covers the
+branch model (`main` / `develop` / `feature/*`), commit conventions, the pull
+request process, coding standards, and testing requirements.
 
-1. **Fork** the repository.
-2. **Create a branch**: `git checkout -b feature/my-feature`.
-3. **Commit** your changes with clear messages.
-4. **Test**: ensure `xcodebuild test` passes.
-5. **Open a Pull Request** describing the change and rationale.
+**Quick start:**
+
+1. **Fork** the repository and branch from `develop`: `git checkout -b feature/my-feature`.
+2. **Commit** your changes with clear, conventional messages.
+3. **Test**: ensure `xcodebuild test` passes.
+4. **Open a Pull Request** into `develop` describing the change and rationale.
 
 Please keep PRs focused, match the existing architecture (single-source-of-truth, actor-isolated monitors), and add tests where it makes sense. For larger features, open an issue first to align on the approach.
+
+Found a security issue? **Do not open a public issue** — see [`SECURITY.md`](SECURITY.md) for private disclosure instructions.
+
+---
+
+## 🔄 CI / CD
+
+| Workflow | Trigger | Purpose |
+| --- | --- | --- |
+| [`macos-build.yml`](.github/workflows/macos-build.yml) | push to `develop`, PRs into `develop` / `main` | Build + run the full test suite on a `macos-26` runner (Xcode 26). |
+| [`release.yml`](.github/workflows/release.yml) | push of a `v*` tag | Test → archive (Release) → build DMG → publish a GitHub Release with the DMG attached. |
+
+The two workflows are deliberately non-overlapping: CI never runs on tags, and
+release never runs on branches or PRs. See
+[`RELEASE_NOTES_v1.0.0.md`](RELEASE_NOTES_v1.0.0.md) for the v1.0.0 release details.
 
 ---
 

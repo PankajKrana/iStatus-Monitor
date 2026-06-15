@@ -31,12 +31,24 @@ actor DenyingNotifier: AlertNotifying {
 
 @MainActor
 struct AlertEngineTests {
+    let suiteName: String
     var defaults: UserDefaults!
     var engine: AlertEngine!
 
     init() {
-        defaults = UserDefaults(suiteName: "AlertEngineTests-\(UUID().uuidString)")
+        suiteName = "AlertEngineTests-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
         engine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: StubNotifier())
+    }
+
+    /// A fresh `UserDefaults` bound to a test suite. Used to build a second engine
+    /// inside `async` test methods: a locally-created instance lives in its own
+    /// isolation region and can be sent into the `AlertEngine` actor, whereas the
+    /// `@MainActor`-isolated `self.defaults` cannot (Swift 6 region checking). It's
+    /// `nonisolated static` so the returned value is disconnected from `self`'s
+    /// region. Same suite name → same backing store, so persistence still holds.
+    nonisolated private static func makeDefaults(suite: String) -> UserDefaults {
+        UserDefaults(suiteName: suite)!
     }
 
     // MARK: - Rule Management Tests
@@ -362,7 +374,7 @@ struct AlertEngineTests {
 
         await engine.upsertRule(rule)
 
-        let newEngine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: StubNotifier())
+        let newEngine = AlertEngine(defaults: Self.makeDefaults(suite: suiteName), seedDefaultRules: false, notifier: StubNotifier())
         let rules = await newEngine.getRules()
 
         #expect(rules.count == 1)
@@ -453,7 +465,7 @@ struct AlertEngineTests {
     @Test("history is not recorded when notifications are unauthorized")
     func unauthorizedDeliveryRecordsNothing() async {
         let denying = DenyingNotifier()
-        let denyEngine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: denying)
+        let denyEngine = AlertEngine(defaults: Self.makeDefaults(suite: suiteName), seedDefaultRules: false, notifier: denying)
         let rule = AlertRule(
             id: UUID(), metric: .cpu, condition: .above, threshold: 80,
             cooldown: 0, isEnabled: true, label: "CPU"

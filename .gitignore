@@ -46,3 +46,6 @@ Packages/
 .claude/
 .agents/
 skills-lock.json
+
+# understant-anything
+.understand-anything/
