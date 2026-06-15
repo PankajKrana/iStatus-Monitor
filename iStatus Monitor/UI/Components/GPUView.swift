@@ -134,22 +134,6 @@ struct GPUView: View {
         .animation(AppTheme.springAnimation, value: snapshot)
     }
 
-    private func ring(utilization: Double) -> some View {
-        let active = max(0, min(utilization / 100, 1))
-        return Chart {
-            SectorMark(angle: .value("Used", active), innerRadius: .ratio(0.65), angularInset: 1)
-                .foregroundStyle(AppTheme.gpuColor)
-            SectorMark(angle: .value("Idle", 1 - active), innerRadius: .ratio(0.65), angularInset: 1)
-                .foregroundStyle(Color.gray.opacity(0.2))
-        }
-        .chartLegend(.hidden)
-        .frame(width: 62, height: 62)
-        .overlay {
-            Text("\(Int(utilization))%")
-                .font(.caption2.monospacedDigit())
-        }
-    }
-
     private func vramRatio(totalMB: Int, usedMB: Int?) -> Double {
         guard totalMB > 0, let usedMB else { return 0 }
         return max(0, min(Double(usedMB) / Double(totalMB), 1))

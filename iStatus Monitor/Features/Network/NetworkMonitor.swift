@@ -16,6 +16,9 @@ actor NetworkMonitor {
     private let pathQueue = DispatchQueue(label: "NetworkMonitor.PathQueue")
     private var pathStatus: NWPath.Status = .requiresConnection
     private var pathPrimaryType: NWInterface.InterfaceType?
+    /// Whether `pathMonitor.start` has been called. Guards lazy start (and
+    /// guards `invalidate()` against double-cancel).
+    private var pathMonitorStarted = false
 
     private var previousCounters: [String: InterfaceCounter] = [:]
     private var history60s: [ThroughputPoint] = []
@@ -23,16 +26,34 @@ actor NetworkMonitor {
     private var totalUploadSinceLaunch: UInt64 = 0
 
     init() {
+        // Only wire the handler here — do NOT start the monitor in `init`.
+        // `start(queue:)` immediately schedules `pathUpdateHandler`, which hops
+        // back onto this actor via `updatePath`; starting before `self` is fully
+        // initialized is the kind of escape Swift 6 flags. Start is deferred to
+        // the first sample (`ensurePathMonitoring`), where `self` is fully formed.
         pathMonitor.pathUpdateHandler = { [weak self] path in
             Task {
                 await self?.updatePath(path)
             }
         }
-        pathMonitor.start(queue: pathQueue)
     }
 
-    deinit {
+    /// Stop observing network-path changes. Called from the owning service's
+    /// teardown rather than from `deinit`: an actor `deinit` runs in a
+    /// nonisolated context, so touching the (non-`Sendable`) `pathMonitor` there
+    /// is unsafe. Idempotent; the next `latestSnapshot()` lazily restarts.
+    func invalidate() {
+        guard pathMonitorStarted else { return }
         pathMonitor.cancel()
+        pathMonitorStarted = false
+    }
+
+    /// Lazily start the path monitor the first time metrics are sampled. Runs in
+    /// actor isolation, so there is no init-ordering hazard.
+    private func ensurePathMonitoring() {
+        guard !pathMonitorStarted else { return }
+        pathMonitorStarted = true
+        pathMonitor.start(queue: pathQueue)
     }
 
     func snapshots(every interval: Duration = .seconds(1)) -> AsyncStream<NetworkSnapshot> {
@@ -59,6 +80,7 @@ actor NetworkMonitor {
     }
 
     func latestSnapshot() -> NetworkSnapshot? {
+        ensurePathMonitoring()
         let now = Date()
         let current = collectInterfaceCounters()
 

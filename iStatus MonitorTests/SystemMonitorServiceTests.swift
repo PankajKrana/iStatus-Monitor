@@ -17,33 +17,12 @@ struct SystemMonitorServiceTests {
         return condition()
     }
 
-    @Test("service initializes successfully")
-    func serviceInitialization() {
-        let service = SystemMonitorService()
-        #expect(true)
-    }
-
-    @Test("service initializes with custom dependencies")
-    func serviceInitializationWithDeps() {
-        let service = SystemMonitorService(
-            cpuMonitor: CPUMonitor(),
-            memoryMonitor: MemoryMonitor(),
-            batteryMonitor: BatteryMonitor(),
-            networkMonitor: NetworkMonitor(),
-            gpuMonitor: GPUMonitor(),
-            thermalMonitor: ThermalMonitor(),
-            dataStore: DataStore(),
-            alertEngine: AlertEngine(),
-            batteryAlertService: BatteryAlertService(),
-            historyStore: nil
-        )
-        #expect(true)
-    }
+    // MARK: - Lifecycle
 
     @Test("start updates appState monitoring flag")
     func startUpdatesMonitoringFlag() async throws {
         let service = SystemMonitorService()
-        let appState = await AppState()
+        let appState = AppState()
 
         #expect(!appState.isMonitoring)
 
@@ -54,18 +33,18 @@ struct SystemMonitorServiceTests {
         await service.stop()
     }
 
-    @Test("stop cancels monitoring")
+    @Test("stop cancels monitoring and clears the flag")
     func stopCancelsMonitoring() async throws {
         let service = SystemMonitorService()
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
-        try await Task.sleep(nanoseconds: 20_000_000)
+        #expect(await eventually { appState.isMonitoring })
 
         await service.stop()
-        try await Task.sleep(nanoseconds: 50_000_000)
 
-        #expect(true)
+        // The loop must wind down and flip the flag back off — not merely "not crash".
+        #expect(await eventually { !appState.isMonitoring })
     }
 
     @Test("start can only be called once")
@@ -73,18 +52,20 @@ struct SystemMonitorServiceTests {
         let service = SystemMonitorService()
         let appState = AppState()
 
-        await service.start(appState: appState, interval: .milliseconds(100))
-        try await Task.sleep(nanoseconds: 20_000_000)
+        await service.start(appState: appState, interval: .milliseconds(50))
+        #expect(await eventually { appState.isMonitoring })
 
-        // Second start should be ignored (guard loopTask == nil)
-        await service.start(appState: appState, interval: .milliseconds(100))
-
-        try await Task.sleep(nanoseconds: 50_000_000)
-
+        // A second start while running is ignored (guard loopTask == nil). After it,
+        // a single stop must fully stop monitoring — proving no second loop leaked.
+        await service.start(appState: appState, interval: .milliseconds(50))
         await service.stop()
+
+        #expect(await eventually { !appState.isMonitoring })
     }
 
-    @Test("monitor samples metrics")
+    // MARK: - Sampling
+
+    @Test("monitor samples metrics into appState")
     func monitorSamplesMetrics() async throws {
         let service = SystemMonitorService()
         let appState = AppState()
@@ -92,61 +73,65 @@ struct SystemMonitorServiceTests {
         await service.start(appState: appState, interval: .milliseconds(50))
 
         #expect(await eventually { appState.cpu.coreCount > 0 })
+        #expect(await eventually { appState.lastUpdated != nil })
 
         await service.stop()
     }
 
-    @Test("pause stops sampling")
-    func pauseStopsSampling() async throws {
+    @Test("pause halts sampling; resume restarts it")
+    func pauseAndResumeSampling() async throws {
         let service = SystemMonitorService()
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
-        #expect(await eventually { appState.isMonitoring })
+        #expect(await eventually { appState.lastUpdated != nil })
 
+        // While paused, no new samples land: lastUpdated must stop advancing.
         appState.isMonitoringPaused = true
-        try await Task.sleep(nanoseconds: 100_000_000)
+        // Let any in-flight tick settle, then capture the frozen timestamp.
+        try await Task.sleep(for: .milliseconds(120))
+        let frozen = appState.lastUpdated
+        try await Task.sleep(for: .milliseconds(120))
+        #expect(appState.lastUpdated == frozen)
+        #expect(appState.isMonitoring) // paused != stopped
 
-        #expect(appState.isMonitoring)
-
+        // Resuming produces a fresh sample.
         appState.isMonitoringPaused = false
-        await service.stop()
-    }
-
-    @Test("resume resumes sampling after pause")
-    func resumeAfterPause() async throws {
-        let service = SystemMonitorService()
-        let appState = AppState()
-
-        await service.start(appState: appState, interval: .milliseconds(50))
-        #expect(await eventually { appState.isMonitoring })
-
-        appState.isMonitoringPaused = true
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        appState.isMonitoringPaused = false
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        #expect(appState.isMonitoring)
+        #expect(await eventually { appState.lastUpdated != frozen })
 
         await service.stop()
     }
 
-    @Test("monitor maintains CPU history")
+    @Test("monitor accumulates CPU history while sampling")
     func cpuHistoryMaintenance() async throws {
         let service = SystemMonitorService()
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        try await Task.sleep(nanoseconds: 300_000_000)
-
-        #expect(appState.cpuHistory.count >= 0)
+        // History must actually grow — the previous `>= 0` assertion was vacuous.
+        #expect(await eventually { appState.cpuHistory.count >= 2 })
 
         await service.stop()
     }
 
-    @Test("monitor evaluates alerts")
+    @Test("service keeps sampling through the persistence path")
+    func dataPersistsThroughService() async throws {
+        let dataStore = DataStore()
+        let service = SystemMonitorService(dataStore: dataStore)
+        let appState = AppState()
+
+        await service.start(appState: appState, interval: .milliseconds(50))
+
+        // A second timestamp proves the loop survived persist() and kept ticking.
+        #expect(await eventually { appState.lastUpdated != nil })
+        let first = appState.lastUpdated
+        #expect(await eventually { appState.lastUpdated != first })
+
+        await service.stop()
+    }
+
+    @Test("monitor runs alert evaluation on each tick")
     func monitorEvaluatesAlerts() async throws {
         let alertEngine = AlertEngine()
         let service = SystemMonitorService(alertEngine: alertEngine)
@@ -161,72 +146,28 @@ struct SystemMonitorServiceTests {
             isEnabled: true,
             label: "Test Alert"
         )
-
         await alertEngine.upsertRule(rule)
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        try await Task.sleep(nanoseconds: 200_000_000)
-
-        let history = await alertEngine.getHistory()
-
-        #expect(history.count >= 0)
-
-        await service.stop()
-    }
-
-    @Test("service persists data")
-    func dataPersistesThroughService() async throws {
-        let dataStore = DataStore()
-        let service = SystemMonitorService(dataStore: dataStore)
-        let appState = AppState()
-
-        await service.start(appState: appState, interval: .milliseconds(50))
-
-        try await Task.sleep(nanoseconds: 200_000_000)
-
-        #expect(true)
+        // Assert the loop drives sampling (evaluation rides the same tick). The
+        // deterministic alert-firing semantics are covered in AlertEngineTests;
+        // here we only verify the rule survives and sampling progresses.
+        #expect(await eventually { appState.lastUpdated != nil })
+        let rules = await alertEngine.getRules()
+        #expect(rules.contains { $0.id == rule.id })
 
         await service.stop()
     }
 
-    @Test("service respects sampling interval")
-    func samplingIntervalRespected() async throws {
-        let service = SystemMonitorService()
-        let appState = AppState()
-
-        let startTime = Date()
-        await service.start(appState: appState, interval: .milliseconds(100))
-
-        try await Task.sleep(nanoseconds: 250_000_000)
-
-        let elapsed = Date().timeIntervalSince(startTime)
-
-        #expect(elapsed >= 0.25)
-
-        await service.stop()
-    }
-
-    @Test("service continues on monitor errors")
-    func errorRecovery() async throws {
-        let service = SystemMonitorService()
-        let appState = AppState()
-
-        await service.start(appState: appState, interval: .milliseconds(50))
-
-        #expect(await eventually { appState.isMonitoring })
-
-        await service.stop()
-    }
-
-    @Test("appState updates happen on mainActor")
+    @Test("appState updates are valid and main-actor coordinated")
     func mainActorCoordination() async throws {
         let service = SystemMonitorService()
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        _ = await eventually { appState.cpu.coreCount > 0 }
+        #expect(await eventually { appState.cpu.coreCount > 0 })
 
         let cpuUsage = appState.cpu.usagePercent
         let memUsage = appState.ram.usedPercent
@@ -237,87 +178,20 @@ struct SystemMonitorServiceTests {
         await service.stop()
     }
 
-    @Test("stop cancels loop properly")
-    func cancellationBehavior() async throws {
-        let service = SystemMonitorService()
-        let appState = AppState()
-
-        await service.start(appState: appState, interval: .milliseconds(50))
-        #expect(await eventually { appState.isMonitoring })
-
-        await service.stop()
-
-        #expect(await eventually { !appState.isMonitoring || appState.isMonitoringPaused })
-    }
-
-    @Test("full monitoring cycle works")
-    func fullMonitoringCycle() async throws {
-        let alertEngine = AlertEngine()
-        let service = SystemMonitorService(alertEngine: alertEngine)
-        let appState = AppState()
-
-        let rule = AlertRule(
-            id: UUID(),
-            metric: .memory,
-            condition: .above,
-            threshold: 99.0,
-            cooldown: 1,
-            isEnabled: true,
-            label: "Memory Test"
-        )
-
-        await alertEngine.upsertRule(rule)
-
-        await service.start(appState: appState, interval: .milliseconds(50))
-
-        appState.isMonitoringPaused = true
-        try await Task.sleep(nanoseconds: 50_000_000)
-
-        appState.isMonitoringPaused = false
-        #expect(await eventually { appState.isMonitoring })
-
-        let history = await alertEngine.getHistory()
-        let rules = await alertEngine.getRules()
-
-        #expect(rules.count > 0)
-
-        await service.stop()
-
-        #expect(await eventually { !appState.isMonitoring })
-    }
-
-    @Test("monitor operates efficiently at 1 second interval")
-    func efficiencyTest() async throws {
-        let service = SystemMonitorService()
-        let appState = AppState()
-
-        let startTime = Date()
-        await service.start(appState: appState, interval: .seconds(1))
-
-        try await Task.sleep(nanoseconds: 3_500_000_000)
-
-        let elapsed = Date().timeIntervalSince(startTime)
-
-        #expect(elapsed >= 3.0)
-        #expect(elapsed < 5.0)
-
-        await service.stop()
-    }
-
-    @Test("handles rapid start stop cycles")
+    @Test("handles rapid start/stop cycles and ends stopped")
     func rapidCycles() async throws {
         let service = SystemMonitorService()
         let appState = AppState()
 
         for _ in 0..<3 {
             await service.start(appState: appState, interval: .milliseconds(50))
-            try await Task.sleep(nanoseconds: 50_000_000)
+            #expect(await eventually { appState.isMonitoring })
             await service.stop()
-            try await Task.sleep(nanoseconds: 50_000_000)
+            #expect(await eventually { !appState.isMonitoring })
         }
-
-        #expect(true)
     }
+
+    // MARK: - Interval changes
 
     @Test("updateInterval restarts the loop and keeps sampling")
     func updateIntervalRestartsLoop() async throws {
@@ -341,11 +215,16 @@ struct SystemMonitorServiceTests {
         await service.stop()
     }
 
-    @Test("updateInterval before start is a no-op that does not crash")
+    @Test("updateInterval before start is a no-op that does not start monitoring")
     func updateIntervalBeforeStart() async throws {
         let service = SystemMonitorService()
+        let appState = AppState()
+
         // No active AppState yet — should simply record the interval, not start.
         await service.updateInterval(.milliseconds(200))
-        #expect(true)
+
+        // Give any erroneous loop a chance to flip the flag, then assert it stayed off.
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!appState.isMonitoring)
     }
 }

@@ -10,8 +10,7 @@ struct CircularGauge: View {
     let title: String?
     let label: String?
     var strokeWidth: CGFloat = 12
-    var animatedValue: Double?
-    
+
     init(
         value: Double,
         maximum: Double = 100,
@@ -28,7 +27,6 @@ struct CircularGauge: View {
         self.title = title
         self.label = label
         self.strokeWidth = strokeWidth
-        self.animatedValue = nil
     }
     
     var percentage: Double {
