@@ -17,6 +17,7 @@ extension Notification.Name {
 ///   dashboard is never opened (B1),
 /// - acts as the `UNUserNotificationCenterDelegate` so alerts present while the
 ///   app is active and the "View Dashboard" action works (B8).
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     /// Set by the App composition root. Invoked once, after launch, on the main
     /// actor — independent of any window's lifecycle.
