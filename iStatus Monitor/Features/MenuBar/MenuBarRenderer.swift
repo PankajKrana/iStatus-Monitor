@@ -19,6 +19,10 @@ struct MenuBarSegment: Equatable, Sendable {
     let showsIcon: Bool
     /// Severity for coloring (text in attributed output, icon in the view layer).
     let severity: WidgetSeverity
+    /// VoiceOver description for this segment, e.g. `"CPU: 15 percent"`. The view
+    /// layer applies this via `.accessibilityLabel(...)` so assistive tech reads a
+    /// curated phrase instead of the raw glyph + abbreviated text.
+    let accessibilityLabel: String
 }
 
 // MARK: - Menu Bar Renderer
@@ -48,12 +52,18 @@ struct MenuBarRenderer {
             let value = entry.widget.formattedValue(from: appState)
             let text = includeLabel ? "\(entry.widget.name) \(value)" : value
 
+            // Prefer the widget's curated VoiceOver phrase; fall back to the
+            // visible text if a widget hasn't customized one (never empty).
+            let spoken = entry.widget.accessibilityLabel(from: appState)
+            let accessibilityLabel = spoken.isEmpty ? text : spoken
+
             return MenuBarSegment(
                 widgetId: entry.widget.id,
                 text: text,
                 sfSymbol: entry.widget.sfSymbol,
                 showsIcon: includeIcon,
-                severity: entry.widget.severity(from: appState)
+                severity: entry.widget.severity(from: appState),
+                accessibilityLabel: accessibilityLabel
             )
         }
     }
