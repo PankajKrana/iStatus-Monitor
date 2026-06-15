@@ -29,7 +29,10 @@ actor MemoryMonitor {
     func latestSnapshot() -> MemorySnapshot? {
         guard let vmStats = readVMStatistics() else { return nil }
 
-        let pageSize = UInt64(vm_kernel_page_size)
+        // `vm_kernel_page_size` is a global mutable `var` (not concurrency-safe
+        // under Swift 6). `sysconf(_SC_PAGESIZE)` is a function call returning the
+        // same VM page size (16 KB on Apple Silicon) without touching shared state.
+        let pageSize = UInt64(sysconf(_SC_PAGESIZE))
         let total = ProcessInfo.processInfo.physicalMemory
 
         // Categories follow Activity Monitor: app memory is anonymous (internal,
