@@ -77,6 +77,7 @@ struct MenuBarLabelView: View {
             // Nothing enabled / no data yet — show a neutral glyph so the menu
             // bar item remains clickable.
             Image(systemName: "gauge.with.dots.needle.33percent")
+                .accessibilityLabel("iStatus Monitor: collecting metrics")
         } else {
             HStack(spacing: layout == .detailed ? 8 : 6) {
                 ForEach(Array(segments.enumerated()), id: \.element.widgetId) { index, segment in
@@ -103,6 +104,8 @@ struct MenuBarSegmentView: View {
             Text(segment.text)
         }
         .foregroundStyle(menuBarColor(for: segment.severity))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(segment.accessibilityLabel)
     }
 }
 
@@ -178,6 +181,8 @@ private struct MetricRow: View {
                 .monospacedDigit()
                 .foregroundStyle(menuBarColor(for: widget.severity(from: appState)))
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(widget.accessibilityLabel(from: appState))
     }
 }
 

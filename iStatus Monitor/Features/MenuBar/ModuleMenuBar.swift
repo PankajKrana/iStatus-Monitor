@@ -54,8 +54,9 @@ struct ModuleMenuBarLabel: View {
         } else {
             // No data yet (e.g. battery on a desktop): keep the item clickable
             // with the widget's own glyph.
-            Image(systemName: widgetManager.registry.widget(for: widgetId)?.sfSymbol
-                ?? "gauge.with.dots.needle.33percent")
+            let widget = widgetManager.registry.widget(for: widgetId)
+            Image(systemName: widget?.sfSymbol ?? "gauge.with.dots.needle.33percent")
+                .accessibilityLabel("\(widget?.name ?? "Metric"): collecting data")
         }
     }
 }
@@ -137,7 +138,7 @@ struct ModuleMenuBarPopover: View {
 
     @ViewBuilder
     private var cpuContent: some View {
-        DetailRow(label: "Usage", value: percentString(appState.cpu.usagePercent))
+        DetailRow(label: "Usage", value: MetricFormat.percent(appState.cpu.usagePercent))
         DetailRow(label: "Temperature",
                   value: appState.cpu.temperatureCelsius.map { String(format: "%.0f°C", $0) } ?? "—")
         if let ghz = appState.cpuFrequencyGHz {
@@ -162,8 +163,8 @@ struct ModuleMenuBarPopover: View {
     @ViewBuilder
     private var ramContent: some View {
         if let memory = appState.memorySnapshot {
-            DetailRow(label: "Total", value: bytesString(memory.totalBytes))
-            DetailRow(label: "Used", value: "\(memory.usedString) (\(percentString(appState.ram.usedPercent)))")
+            DetailRow(label: "Total", value: MetricFormat.bytes(memory.totalBytes))
+            DetailRow(label: "Used", value: "\(memory.usedString) (\(MetricFormat.percent(appState.ram.usedPercent)))")
             DetailRow(label: "Free", value: memory.freeString)
             DetailRow(label: "App", value: memory.appString)
             DetailRow(label: "Wired", value: memory.wiredString)
@@ -175,7 +176,7 @@ struct ModuleMenuBarPopover: View {
             if let processes = appState.processSnapshot, !processes.topByMemory.isEmpty {
                 SectionLabel("Top Processes")
                 ForEach(processes.topByMemory) { process in
-                    ProcessRow(name: process.name, value: bytesString(process.memoryBytes))
+                    ProcessRow(name: process.name, value: MetricFormat.bytes(process.memoryBytes))
                 }
             }
         } else {
@@ -186,7 +187,7 @@ struct ModuleMenuBarPopover: View {
     @ViewBuilder
     private var gpuContent: some View {
         if let snapshot = appState.gpuSnapshot, let gpu = snapshot.gpus.first {
-            DetailRow(label: "Usage", value: percentString(appState.gpu.usagePercent))
+            DetailRow(label: "Usage", value: MetricFormat.percent(appState.gpu.usagePercent))
             DetailRow(label: "Name", value: gpu.name)
             if let temp = gpu.temperatureCelsius {
                 DetailRow(label: "Temperature", value: String(format: "%.0f°C", temp))
@@ -203,8 +204,8 @@ struct ModuleMenuBarPopover: View {
     private var networkContent: some View {
         if let snapshot = appState.networkSnapshot {
             let primary = snapshot.interfaces.first(where: \.isPrimary) ?? snapshot.interfaces.first
-            DetailRow(label: "Download", value: speedString(appState.network.bytesInPerSecond))
-            DetailRow(label: "Upload", value: speedString(appState.network.bytesOutPerSecond))
+            DetailRow(label: "Download", value: MetricFormat.speed(appState.network.bytesInPerSecond))
+            DetailRow(label: "Upload", value: MetricFormat.speed(appState.network.bytesOutPerSecond))
             DetailRow(label: "Local IP", value: primary?.ipv4Address ?? "—")
             DetailRow(label: "Public IP", value: appState.networkInsights?.publicIP ?? "…")
             DetailRow(label: "Interface", value: primary?.displayName ?? primary?.name ?? "—")
@@ -236,8 +237,8 @@ struct ModuleMenuBarPopover: View {
     @ViewBuilder
     private var batteryContent: some View {
         if let battery = appState.batterySnapshot {
-            DetailRow(label: "Percentage", value: percentString(battery.chargePercent))
-            DetailRow(label: "Health", value: percentString(battery.healthPercent))
+            DetailRow(label: "Percentage", value: MetricFormat.percent(battery.chargePercent))
+            DetailRow(label: "Health", value: MetricFormat.percent(battery.healthPercent))
             DetailRow(label: "Cycle count", value: "\(battery.cycleCount)")
             DetailRow(label: "Time remaining", value: timeRemaining(battery))
             DetailRow(label: "Charging state", value: battery.chargeState.rawValue.capitalized)
@@ -254,15 +255,15 @@ struct ModuleMenuBarPopover: View {
         let volume = appState.diskSnapshot?.primaryVolume
         if let volume {
             DetailRow(label: "Total space", value: volume.totalString)
-            DetailRow(label: "Used space", value: "\(volume.usedString) (\(percentString(volume.usedPercent)))")
+            DetailRow(label: "Used space", value: "\(volume.usedString) (\(MetricFormat.percent(volume.usedPercent)))")
             DetailRow(label: "Free space", value: volume.freeString)
         } else if appState.disk.totalBytes > 0 {
-            DetailRow(label: "Total space", value: bytesString(appState.disk.totalBytes))
-            DetailRow(label: "Used space", value: "\(bytesString(appState.disk.usedBytes)) (\(percentString(appState.disk.usedPercent)))")
-            DetailRow(label: "Free space", value: bytesString(appState.disk.totalBytes - appState.disk.usedBytes))
+            DetailRow(label: "Total space", value: MetricFormat.bytes(appState.disk.totalBytes))
+            DetailRow(label: "Used space", value: "\(MetricFormat.bytes(appState.disk.usedBytes)) (\(MetricFormat.percent(appState.disk.usedPercent)))")
+            DetailRow(label: "Free space", value: MetricFormat.bytes(appState.disk.totalBytes - appState.disk.usedBytes))
         }
-        DetailRow(label: "Read speed", value: speedString(appState.disk.readBytesPerSecond))
-        DetailRow(label: "Write speed", value: speedString(appState.disk.writeBytesPerSecond))
+        DetailRow(label: "Read speed", value: MetricFormat.speed(appState.disk.readBytesPerSecond))
+        DetailRow(label: "Write speed", value: MetricFormat.speed(appState.disk.writeBytesPerSecond))
     }
 
     @ViewBuilder
@@ -363,20 +364,5 @@ private struct ProcessRow: View {
     }
 }
 
-// MARK: - Formatting
-
-private func percentString(_ value: Double) -> String {
-    String(format: "%.0f%%", value)
-}
-
-private func bytesString(_ bytes: UInt64) -> String {
-    ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory)
-}
-
-private func speedString(_ bytesPerSecond: UInt64) -> String {
-    let kilobytes = Double(bytesPerSecond) / 1024
-    if kilobytes < 1024 {
-        return String(format: "%.1f KB/s", kilobytes)
-    }
-    return String(format: "%.1f MB/s", kilobytes / 1024)
-}
+// Metric strings are formatted via the shared `MetricFormat` helpers (see
+// Core/MetricFormat.swift) so every surface renders values identically.

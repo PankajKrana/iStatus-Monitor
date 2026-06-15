@@ -1,21 +1,7 @@
 import Foundation
 
-// MARK: - Formatting Helpers
-
-/// Whole-percent string, e.g. `15` → `"15%"`.
-private func percentString(_ value: Double) -> String {
-    String(format: "%.0f%%", value)
-}
-
-/// Human-readable throughput, e.g. `"1.2 MB/s"`. Matches the project's existing
-/// network formatting (KB/s below 1 MB/s, MB/s above).
-private func speedString(_ bytesPerSecond: UInt64) -> String {
-    let kilobytes = Double(bytesPerSecond) / 1024
-    if kilobytes < 1024 {
-        return String(format: "%.1f KB/s", kilobytes)
-    }
-    return String(format: "%.1f MB/s", kilobytes / 1024)
-}
+// Metric strings are formatted via the shared `MetricFormat` helpers so the
+// menu bar, popovers, and dashboard all render values identically.
 
 // MARK: - CPU
 
@@ -32,7 +18,7 @@ nonisolated struct CPUWidget: MenuBarWidget {
     }
 
     @MainActor func formattedValue(from appState: AppState) -> String {
-        percentString(appState.cpu.usagePercent)
+        MetricFormat.percent(appState.cpu.usagePercent)
     }
 
     @MainActor func accessibilityLabel(from appState: AppState) -> String {
@@ -58,7 +44,7 @@ nonisolated struct RAMWidget: MenuBarWidget {
 
     @MainActor func formattedValue(from appState: AppState) -> String {
         guard let value = currentValue(from: appState) else { return "" }
-        return percentString(value)
+        return MetricFormat.percent(value)
     }
 
     @MainActor func accessibilityLabel(from appState: AppState) -> String {
@@ -85,7 +71,7 @@ nonisolated struct GPUWidget: MenuBarWidget {
 
     @MainActor func formattedValue(from appState: AppState) -> String {
         guard let value = currentValue(from: appState) else { return "" }
-        return percentString(value)
+        return MetricFormat.percent(value)
     }
 
     @MainActor func accessibilityLabel(from appState: AppState) -> String {
@@ -114,15 +100,15 @@ nonisolated struct NetworkWidget: MenuBarWidget {
 
     @MainActor func formattedValue(from appState: AppState) -> String {
         guard appState.networkSnapshot != nil else { return "" }
-        let down = speedString(appState.network.bytesInPerSecond)
-        let up = speedString(appState.network.bytesOutPerSecond)
+        let down = MetricFormat.speed(appState.network.bytesInPerSecond)
+        let up = MetricFormat.speed(appState.network.bytesOutPerSecond)
         return "↓ \(down) ↑ \(up)"
     }
 
     @MainActor func accessibilityLabel(from appState: AppState) -> String {
         guard appState.networkSnapshot != nil else { return "" }
-        let down = speedString(appState.network.bytesInPerSecond)
-        let up = speedString(appState.network.bytesOutPerSecond)
+        let down = MetricFormat.speed(appState.network.bytesInPerSecond)
+        let up = MetricFormat.speed(appState.network.bytesOutPerSecond)
         return "Network: download \(down), upload \(up)"
     }
 
@@ -148,7 +134,7 @@ nonisolated struct BatteryWidget: MenuBarWidget {
 
     @MainActor func formattedValue(from appState: AppState) -> String {
         guard let value = currentValue(from: appState) else { return "" }
-        return percentString(value)
+        return MetricFormat.percent(value)
     }
 
     @MainActor func accessibilityLabel(from appState: AppState) -> String {
@@ -182,7 +168,7 @@ nonisolated struct SSDWidget: MenuBarWidget {
 
     @MainActor func formattedValue(from appState: AppState) -> String {
         guard let value = currentValue(from: appState) else { return "" }
-        return percentString(value)
+        return MetricFormat.percent(value)
     }
 
     @MainActor func accessibilityLabel(from appState: AppState) -> String {
