@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import UserNotifications
 
 actor AlertEngine {
@@ -72,6 +73,9 @@ actor AlertEngine {
         if authorizationResolved { return }
         let status = await notifier.authorizationStatus()
         guard status == .notDetermined else {
+            if status == .denied {
+                Logger.alerts.notice("Notifications are denied; threshold alerts will not be delivered until re-enabled in System Settings")
+            }
             authorizationResolved = true
             return
         }
@@ -238,7 +242,11 @@ actor AlertEngine {
         // actually delivered. Recording a "fired" alert the user never saw would
         // make history lie and could suppress a real, deliverable alert during the
         // cooldown window (B6).
-        guard delivered else { return }
+        guard delivered else {
+            Logger.alerts.notice("Alert '\(rule.label, privacy: .public)' triggered but not delivered (notifications off); not recorded")
+            return
+        }
+        Logger.alerts.info("Alert fired: '\(rule.label, privacy: .public)' \(rule.metric.rawValue, privacy: .public)=\(observedValue, privacy: .public)")
 
         lastFired[rule.id] = Date()
         persistLastFired()
@@ -296,21 +304,17 @@ actor AlertEngine {
         }
     }
 
-    private func persistRules() {
-        if let data = try? encoder.encode(rules) {
-            defaults.set(data, forKey: rulesKey)
-        }
-    }
+    private func persistRules() { persist(rules, forKey: rulesKey) }
+    private func persistHistory() { persist(history, forKey: historyKey) }
+    private func persistLastFired() { persist(lastFired, forKey: lastFiredKey) }
 
-    private func persistHistory() {
-        if let data = try? encoder.encode(history) {
-            defaults.set(data, forKey: historyKey)
-        }
-    }
-
-    private func persistLastFired() {
-        if let data = try? encoder.encode(lastFired) {
-            defaults.set(data, forKey: lastFiredKey)
+    /// Encode-and-store helper. Encoding a plain Codable to JSON effectively never
+    /// fails, but if it ever does we lose alert state silently — so log it.
+    private func persist<T: Encodable>(_ value: T, forKey key: String) {
+        do {
+            defaults.set(try encoder.encode(value), forKey: key)
+        } catch {
+            Logger.alerts.error("Failed to persist '\(key, privacy: .public)': \(error.localizedDescription, privacy: .public)")
         }
     }
 }
