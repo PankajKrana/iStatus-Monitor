@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 actor DataStore {
     private let encoder = JSONEncoder()
@@ -22,12 +23,9 @@ actor DataStore {
             let data = try encoder.encode(snapshot)
             try appendLine(data)
         } catch {
-            // Log error in debug builds to help troubleshoot persistence issues.
-            // This is best-effort: the app continues operating even if metrics
-            // aren't persisted to disk (they're still available in-memory).
-            #if DEBUG
-            print("⚠️  Metrics persistence error: \(error)")
-            #endif
+            // Best-effort: the app continues operating even if metrics aren't
+            // persisted to disk (they're still available in-memory).
+            Logger.persistence.error("Metrics log write failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

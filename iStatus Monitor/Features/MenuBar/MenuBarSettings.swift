@@ -37,8 +37,7 @@ final class MenuBarSettings {
     /// `didSet` side effect and looping.
     private var isRevertingLaunchAtLogin = false
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "iStatus-Monitor",
-                                category: "LaunchAtLogin")
+    private let logger = Logger.menuBar
 
     private let defaults: UserDefaults
 

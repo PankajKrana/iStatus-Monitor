@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import UserNotifications
 
 /// Handles battery-specific alerts that the configurable `AlertEngine` rule set
@@ -60,6 +61,11 @@ actor BatteryAlertService {
         content.interruptionLevel = .timeSensitive
 
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        try? await center.add(request)
+        do {
+            try await center.add(request)
+            Logger.alerts.info("Battery alert delivered: \(title, privacy: .public)")
+        } catch {
+            Logger.alerts.error("Battery alert delivery failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 }

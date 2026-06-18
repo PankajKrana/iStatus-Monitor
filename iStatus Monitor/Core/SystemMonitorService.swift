@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 
 actor SystemMonitorService {
     private let cpuMonitor: CPUMonitor
@@ -81,6 +82,8 @@ actor SystemMonitorService {
         let intervalSeconds = Double(interval.components.seconds)
             + Double(interval.components.attoseconds) / 1_000_000_000_000_000_000
 
+        Logger.monitoring.notice("Monitoring started (interval \(intervalSeconds, privacy: .public)s)")
+
         loopTask = Task {
             await MainActor.run { appState.isMonitoring = true }
             await alertEngine.requestAuthorizationIfNeeded()
@@ -147,8 +150,10 @@ actor SystemMonitorService {
     }
 
     func stop() {
+        guard loopTask != nil else { return }
         loopTask?.cancel()
         loopTask = nil
+        Logger.monitoring.notice("Monitoring stopped")
     }
 
     /// Change the sampling cadence at runtime (Settings → Update interval).
@@ -163,6 +168,7 @@ actor SystemMonitorService {
             return
         }
         guard interval != activeInterval else { return }
+        Logger.monitoring.info("Sampling interval changed")
         stop()
         start(appState: appState, interval: interval)
     }

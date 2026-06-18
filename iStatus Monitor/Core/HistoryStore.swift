@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 @ModelActor
@@ -34,7 +35,11 @@ actor HistoryStore {
         }
 
         trimRollingWindow(reference: now)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            Logger.persistence.error("History save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func history(for metric: MetricType, in interval: DateInterval) async -> [MetricSample] {
@@ -46,7 +51,13 @@ actor HistoryStore {
             },
             sortBy: [SortDescriptor(\.timestamp, order: .forward)]
         )
-        let records = (try? modelContext.fetch(descriptor)) ?? []
+        let records: [MetricRecord]
+        do {
+            records = try modelContext.fetch(descriptor)
+        } catch {
+            Logger.persistence.error("History fetch failed for \(metric.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            records = []
+        }
         // Map to a Sendable value type before crossing the actor boundary —
         // live @Model objects must not escape the ModelContext's isolation.
         return records.map { MetricSample(timestamp: $0.timestamp, metricType: $0.metricType, value: $0.value) }
@@ -96,10 +107,12 @@ actor HistoryStore {
             }
         )
 
-        if let old = try? modelContext.fetch(descriptor) {
-            for record in old {
+        do {
+            for record in try modelContext.fetch(descriptor) {
                 modelContext.delete(record)
             }
+        } catch {
+            Logger.persistence.error("History rolling-window trim failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 }
