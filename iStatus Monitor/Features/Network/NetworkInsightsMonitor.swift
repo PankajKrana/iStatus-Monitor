@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 
 // MARK: - Network Insights Monitor
 //
@@ -88,6 +89,9 @@ actor NetworkInsightsMonitor {
             let ip = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
             return ip.isEmpty ? nil : ip
         } catch {
+            // Expected when offline or the lookup service is unreachable; debug
+            // level keeps it out of normal logs.
+            Logger.network.debug("Public IP lookup failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }

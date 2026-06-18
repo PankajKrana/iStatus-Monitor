@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import UserNotifications
 
 /// A single user-facing notification payload, independent of `UserNotifications`
@@ -36,7 +37,12 @@ actor SystemNotifier: AlertNotifying {
     }
 
     func requestAuthorization() async {
-        _ = try? await center.requestAuthorization(options: [.alert, .badge, .sound])
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            Logger.alerts.notice("Notification authorization \(granted ? "granted" : "denied", privacy: .public)")
+        } catch {
+            Logger.alerts.error("Notification authorization request failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     @discardableResult
@@ -59,6 +65,7 @@ actor SystemNotifier: AlertNotifying {
             try await center.add(request)
             return true
         } catch {
+            Logger.alerts.error("Notification delivery failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }

@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import SwiftData
 import SwiftUI
 import UserNotifications
@@ -88,9 +89,7 @@ struct iStatus_MonitorApp: App {
             do {
                 let inMemoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
                 container = try ModelContainer(for: schema, configurations: [inMemoryConfig])
-                #if DEBUG
-                print("⚠️  SwiftData persistent storage unavailable, using in-memory storage")
-                #endif
+                Logger.persistence.error("Persistent SwiftData store unavailable, using in-memory fallback (history will not survive relaunch): \(error.localizedDescription, privacy: .public)")
             } catch {
                 fatalError("Failed to initialize SwiftData (persistent and in-memory): \(error)")
             }
