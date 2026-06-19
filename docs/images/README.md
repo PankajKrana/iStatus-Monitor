@@ -17,8 +17,8 @@ the variant that reads best against GitHub's default (light) theme.
 | `module-cpu-memory.png` | **Menu Bar — CPU & Memory popover** | A per-module popover with detailed CPU/Memory readouts. | ✅ present |
 | `module-network.png` | **Menu Bar — Network popover** | A per-module popover with up/down throughput and interface detail. | ✅ present |
 | `module-battery-thermal.png` | **Menu Bar — Battery & Thermal popover** | A per-module popover with charge, health, and thermal/fan detail. | ✅ present |
-| `alerts.png` | **Alerts** | The Alerts screen: at least one rule configured (e.g. "CPU > 90% for 30s") plus a few fired entries in the alert history. | ⬜ to capture |
-| `history.png` | **History** | The History screen with a time-series chart/sparkline showing a metric trending over time. | ⬜ to capture |
+| `alerts.png` | **Alerts** | The Alerts screen: at least one rule configured (e.g. "CPU > 90% for 30s") plus a few fired entries in the alert history. |✅ present |
+| `history.png` | **History** | The History screen with a time-series chart/sparkline showing a metric trending over time. | ✅ present |
 | `settings.png` | **Settings** | The Settings window (General + menu bar widget configuration). | ✅ present |
 | `app-icon.png` | App icon | The 1024×1024 app icon, used as the README title glyph. | ✅ present |
 
