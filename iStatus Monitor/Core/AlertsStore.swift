@@ -15,6 +15,12 @@ final class AlertsStore {
     /// Active "snooze all" expiry, or nil when alerts aren't globally snoozed.
     var globalSnoozeUntil: Date?
 
+    /// One-shot task that refreshes when the global snooze elapses. The engine
+    /// auto-expires silently (no change event), so without this the banner/icon
+    /// stay stale until the next alert or edit. Cancelled + rescheduled on every
+    /// refresh; on fire it re-reads the now-expired (nil) snooze.
+    @ObservationIgnored private var globalSnoozeExpiry: Task<Void, Never>?
+
     /// True when notifications can actually be delivered. Drives the "enable
     /// notifications" call-to-action in the UI.
     var notificationsEnabled: Bool {
@@ -51,6 +57,18 @@ final class AlertsStore {
             badgeCountLastHour = await engine.recentAlertCount(last: 3600)
             authorizationStatus = await engine.authorizationStatus()
             globalSnoozeUntil = await engine.currentGlobalSnooze()
+            scheduleGlobalSnoozeExpiry()
+        }
+    }
+
+    /// Schedule a single refresh at the global-snooze expiry so the banner/icon
+    /// clear themselves with no polling. No-op when nothing is snoozed.
+    private func scheduleGlobalSnoozeExpiry() {
+        globalSnoozeExpiry?.cancel()
+        guard let until = globalSnoozeUntil else { return }
+        globalSnoozeExpiry = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0, until.timeIntervalSinceNow)))
+            if !Task.isCancelled { self?.refresh() }
         }
     }
 
