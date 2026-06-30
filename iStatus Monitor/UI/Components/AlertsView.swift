@@ -64,6 +64,45 @@ private func effectiveCooldownOptions(current: TimeInterval) -> [(label: String,
     return opts
 }
 
+// MARK: - Snooze helpers
+
+/// Tomorrow at 8am — the "Until tomorrow" snooze target.
+private func tomorrowMorning(from now: Date = Date()) -> Date {
+    let cal = Calendar.current
+    let startTomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: now)) ?? now.addingTimeInterval(86_400)
+    return cal.date(bySettingHour: 8, minute: 0, second: 0, of: startTomorrow) ?? startTomorrow
+}
+
+/// Compact "until" label: time only when it's today, otherwise day + time.
+private func snoozeLabel(_ date: Date) -> String {
+    Calendar.current.isDateInToday(date)
+        ? date.formatted(date: .omitted, time: .shortened)
+        : date.formatted(date: .abbreviated, time: .shortened)
+}
+
+/// Reusable snooze dropdown — shows durations, plus "Resume" when already snoozed.
+private struct SnoozeMenu: View {
+    let snoozedUntil: Date?
+    let onSnooze: (Date) -> Void
+    let onResume: () -> Void
+    var title: String = "Snooze"
+
+    var body: some View {
+        Menu {
+            if snoozedUntil != nil {
+                Button("Resume Now", systemImage: "bell.fill", action: onResume)
+                Divider()
+            }
+            Button("15 Minutes") { onSnooze(Date().addingTimeInterval(15 * 60)) }
+            Button("1 Hour") { onSnooze(Date().addingTimeInterval(3_600)) }
+            Button("Until Tomorrow") { onSnooze(tomorrowMorning()) }
+        } label: {
+            Label(title, systemImage: snoozedUntil == nil ? "bell" : "bell.slash.fill")
+        }
+        .menuIndicator(.hidden)
+    }
+}
+
 // MARK: - AlertsView
 
 struct AlertsView: View {
@@ -114,7 +153,22 @@ struct AlertsView: View {
             .labelsHidden()
             .frame(width: 220)
 
+            if let until = alertsStore.globalSnoozeUntil {
+                Label("All alerts snoozed until \(snoozeLabel(until))", systemImage: "bell.slash.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+            }
+
             Spacer()
+
+            SnoozeMenu(
+                snoozedUntil: alertsStore.globalSnoozeUntil,
+                onSnooze: { alertsStore.snoozeAll(until: $0) },
+                onResume: { alertsStore.clearGlobalSnooze() },
+                title: "Snooze All"
+            )
+            .fixedSize()
 
             if segment == .rules {
                 Button {
@@ -484,9 +538,15 @@ private struct AlertRuleCard: View {
                         Text(rule.label.isEmpty ? rule.metric.title : rule.label)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
-                        Text(summary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if rule.isSnoozed(), let until = rule.snoozedUntil {
+                            Label("Snoozed until \(snoozeLabel(until))", systemImage: "bell.slash.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        } else {
+                            Text(summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                     Toggle("", isOn: $rule.isEnabled)
@@ -539,6 +599,20 @@ private struct AlertRuleCard: View {
                         Label("Test", systemImage: "bell.and.waves.left.and.right")
                     }
                     .controlSize(.small)
+
+                    SnoozeMenu(
+                        snoozedUntil: rule.snoozedUntil,
+                        onSnooze: { until in
+                            rule.snoozedUntil = until
+                            alertsStore.snoozeRule(id: rule.id, until: until)
+                        },
+                        onResume: {
+                            rule.snoozedUntil = nil
+                            alertsStore.clearSnooze(id: rule.id)
+                        }
+                    )
+                    .controlSize(.small)
+                    .fixedSize()
 
                     Spacer()
 

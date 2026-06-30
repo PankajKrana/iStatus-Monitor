@@ -96,6 +96,11 @@ struct AlertRule: Codable, Identifiable, Equatable {
     /// fires. `0` means fire immediately. Replaces the old label-string parsing
     /// for sustained triggering (B3).
     var sustainedFor: TimeInterval
+    /// When set to a future date, this rule is temporarily silenced (snoozed) and
+    /// auto-resumes once the date passes — no timer needed, `evaluate` just stops
+    /// skipping it. `nil` (or a past date) means active. Distinct from `isEnabled`,
+    /// which is a permanent mute.
+    var snoozedUntil: Date?
 
     init(
         id: UUID,
@@ -105,7 +110,8 @@ struct AlertRule: Codable, Identifiable, Equatable {
         cooldown: TimeInterval,
         isEnabled: Bool,
         label: String,
-        sustainedFor: TimeInterval = 0
+        sustainedFor: TimeInterval = 0,
+        snoozedUntil: Date? = nil
     ) {
         self.id = id
         self.metric = metric
@@ -115,10 +121,16 @@ struct AlertRule: Codable, Identifiable, Equatable {
         self.isEnabled = isEnabled
         self.label = label
         self.sustainedFor = sustainedFor
+        self.snoozedUntil = snoozedUntil
+    }
+
+    /// True while the rule is snoozed (silenced) as of `now`.
+    func isSnoozed(asOf now: Date = Date()) -> Bool {
+        (snoozedUntil ?? .distantPast) > now
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, metric, condition, threshold, cooldown, isEnabled, label, sustainedFor
+        case id, metric, condition, threshold, cooldown, isEnabled, label, sustainedFor, snoozedUntil
     }
 
     init(from decoder: Decoder) throws {
@@ -138,6 +150,8 @@ struct AlertRule: Codable, Identifiable, Equatable {
         } else {
             sustainedFor = label.localizedCaseInsensitiveContains("for 10s") ? 10 : 0
         }
+        // Back-compat: rules persisted before snooze existed have no key → active.
+        snoozedUntil = try c.decodeIfPresent(Date.self, forKey: .snoozedUntil)
     }
 
     static func defaultRules() -> [AlertRule] {
