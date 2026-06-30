@@ -11,10 +11,14 @@ actor AlertEngine {
     private let rulesKey = "alerts.rules"
     private let historyKey = "alerts.history"
     private let lastFiredKey = "alerts.lastFired"
+    private let globalSnoozeKey = "alerts.globalSnooze"
 
     private var rules: [AlertRule]
     private var history: [AlertHistoryEntry]
     private var lastFired: [UUID: Date]
+    /// When set to a future date, ALL alerts are silenced until it passes.
+    /// Auto-resumes with no timer — `evaluate` just stops firing while active.
+    private var globalSnoozeUntil: Date?
 
     /// Per-rule accumulated time a rule's condition has held, for sustained
     /// ("for Ns") triggering. Keyed by rule id so multiple sustained rules — and
@@ -58,6 +62,8 @@ actor AlertEngine {
         } else {
             lastFired = [:]
         }
+
+        globalSnoozeUntil = defaults.object(forKey: globalSnoozeKey) as? Date
     }
 
     /// Requests notification authorization only while the status is still
@@ -149,13 +155,58 @@ actor AlertEngine {
     func evaluate(_ snapshot: SystemSnapshot, interval: TimeInterval = 1) async {
         await requestAuthorizationIfNeeded()
 
+        let now = Date()
+        // Global snooze silences everything until it passes (auto-resumes).
+        let globallySnoozed = (globalSnoozeUntil ?? .distantPast) > now
+
         for rule in rules where rule.isEnabled {
+            // Snoozed rules are skipped, and their sustained counter reset so the
+            // snooze window doesn't bank toward an instant fire on resume.
+            if globallySnoozed || rule.isSnoozed(asOf: now) {
+                sustainedDuration[rule.id] = 0
+                continue
+            }
             guard let value = metricValue(for: rule.metric, in: snapshot), value.isFinite else { continue }
             guard shouldTrigger(rule: rule, value: value, snapshot: snapshot, interval: interval) else { continue }
             guard isCooldownSatisfied(for: rule) else { continue }
 
             await fire(rule: rule, observedValue: value)
         }
+    }
+
+    // MARK: - Snooze
+
+    func snoozeRule(id: UUID, until: Date) {
+        guard let idx = rules.firstIndex(where: { $0.id == id }) else { return }
+        rules[idx].snoozedUntil = until
+        sustainedDuration[id] = 0
+        persistRules()
+        emitChange()
+    }
+
+    func clearSnooze(id: UUID) {
+        guard let idx = rules.firstIndex(where: { $0.id == id }) else { return }
+        rules[idx].snoozedUntil = nil
+        persistRules()
+        emitChange()
+    }
+
+    func snoozeAll(until: Date) {
+        globalSnoozeUntil = until
+        defaults.set(until, forKey: globalSnoozeKey)
+        emitChange()
+    }
+
+    func clearGlobalSnooze() {
+        globalSnoozeUntil = nil
+        defaults.removeObject(forKey: globalSnoozeKey)
+        emitChange()
+    }
+
+    /// The active global-snooze date, or `nil` if none is set or it has elapsed.
+    func currentGlobalSnooze() -> Date? {
+        guard let until = globalSnoozeUntil, until > Date() else { return nil }
+        return until
     }
 
     func fireTestAlert(ruleID: UUID) async {

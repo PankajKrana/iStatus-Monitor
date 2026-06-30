@@ -47,6 +47,22 @@ final class AppState {
     var networkInsights: NetworkInsights?
     var cpuFrequencyGHz: Double?
 
+    // MARK: Insight sampling gate
+    //
+    // Process and network-insight enumeration walk every PID (and every socket fd)
+    // on the tick — by far the heaviest samplers — yet they feed only the module
+    // popovers. The monitoring loop skips them unless a popover that shows them is
+    // open. Reference-counted because module mode can present several popovers at
+    // once; sampling runs while the count is > 0.
+    //
+    // ponytail: fails safe — if a popover's onDisappear is missed (a known
+    // MenuBarExtra quirk) the count just stays high and we sample as before; it
+    // can never go negative or hide live data.
+    private(set) var insightViewerCount = 0
+    var wantsInsightSampling: Bool { insightViewerCount > 0 }
+    func beginInsightViewing() { insightViewerCount += 1 }
+    func endInsightViewing() { insightViewerCount = max(0, insightViewerCount - 1) }
+
     func apply(_ snapshot: SystemSnapshot) {
         cpu = snapshot.cpu
         ram = snapshot.ram
