@@ -115,15 +115,14 @@ struct SystemMonitorServiceTests {
         await service.stop()
     }
 
-    @Test("service keeps sampling through the persistence path")
-    func dataPersistsThroughService() async throws {
-        let dataStore = DataStore()
-        let service = SystemMonitorService(dataStore: dataStore)
+    @Test("service keeps sampling across ticks")
+    func serviceKeepsSampling() async throws {
+        let service = SystemMonitorService()
         let appState = AppState()
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        // A second timestamp proves the loop survived persist() and kept ticking.
+        // A second timestamp proves the loop kept ticking.
         #expect(await eventually { appState.lastUpdated != nil })
         let first = appState.lastUpdated
         #expect(await eventually { appState.lastUpdated != first })

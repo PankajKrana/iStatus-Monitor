@@ -12,6 +12,8 @@ final class AlertsStore {
     var history: [AlertHistoryEntry] = []
     var badgeCountLastHour: Int = 0
     var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    /// Active "snooze all" expiry, or nil when alerts aren't globally snoozed.
+    var globalSnoozeUntil: Date?
 
     /// True when notifications can actually be delivered. Drives the "enable
     /// notifications" call-to-action in the UI.
@@ -48,6 +50,7 @@ final class AlertsStore {
             history = await engine.getHistory()
             badgeCountLastHour = await engine.recentAlertCount(last: 3600)
             authorizationStatus = await engine.authorizationStatus()
+            globalSnoozeUntil = await engine.currentGlobalSnooze()
         }
     }
 
@@ -68,6 +71,34 @@ final class AlertsStore {
     func clearHistory() {
         Task {
             await engine.clearHistory()
+            refresh()
+        }
+    }
+
+    func snoozeRule(id: UUID, until: Date) {
+        Task {
+            await engine.snoozeRule(id: id, until: until)
+            refresh()
+        }
+    }
+
+    func clearSnooze(id: UUID) {
+        Task {
+            await engine.clearSnooze(id: id)
+            refresh()
+        }
+    }
+
+    func snoozeAll(until: Date) {
+        Task {
+            await engine.snoozeAll(until: until)
+            refresh()
+        }
+    }
+
+    func clearGlobalSnooze() {
+        Task {
+            await engine.clearGlobalSnooze()
             refresh()
         }
     }

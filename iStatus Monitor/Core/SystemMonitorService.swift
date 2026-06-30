@@ -10,7 +10,6 @@ actor SystemMonitorService {
     private let gpuMonitor: GPUMonitor
     private let thermalMonitor: ThermalMonitor
     private let diskMonitor: DiskMonitor
-    private let dataStore: DataStore
     private let alertEngine: AlertEngine
     private let batteryAlertService: BatteryAlertService
     private let historyStore: HistoryStore?
@@ -43,7 +42,6 @@ actor SystemMonitorService {
         gpuMonitor: GPUMonitor = GPUMonitor(),
         thermalMonitor: ThermalMonitor = ThermalMonitor(),
         diskMonitor: DiskMonitor = DiskMonitor(),
-        dataStore: DataStore = DataStore(),
         alertEngine: AlertEngine = AlertEngine(),
         batteryAlertService: BatteryAlertService = BatteryAlertService(),
         historyStore: HistoryStore? = nil,
@@ -57,7 +55,6 @@ actor SystemMonitorService {
         self.gpuMonitor = gpuMonitor
         self.thermalMonitor = thermalMonitor
         self.diskMonitor = diskMonitor
-        self.dataStore = dataStore
         self.alertEngine = alertEngine
         self.batteryAlertService = batteryAlertService
         self.historyStore = historyStore
@@ -102,13 +99,23 @@ actor SystemMonitorService {
                 let snapshot = await sampleAllMetrics()
                 let cpuHistory = await cpuMonitor.history
 
-                // Phase 2A insights ride the same tick — no new loop/timer. Gathered
+                // Phase 2A insights ride the same tick — no new loop/timer. Sampled
+                // only while a popover is open (the heaviest samplers: process walks
+                // every pid, network-insights walks every socket fd). Gathered
                 // concurrently with the metrics sample; applied to AppState separately
                 // so they never enter the persisted SystemSnapshot.
-                async let processSnapshot = processMonitor.latestSnapshot()
-                async let networkInsights = networkInsightsMonitor.latest()
-                let resolvedProcesses = await processSnapshot
-                let resolvedInsights = await networkInsights
+                let wantsInsights = await MainActor.run { appState.wantsInsightSampling }
+                let resolvedProcesses: ProcessSnapshot?
+                let resolvedInsights: NetworkInsights?
+                if wantsInsights {
+                    async let processSnapshot = processMonitor.latestSnapshot()
+                    async let networkInsights = networkInsightsMonitor.latest()
+                    resolvedProcesses = await processSnapshot
+                    resolvedInsights = await networkInsights
+                } else {
+                    resolvedProcesses = nil
+                    resolvedInsights = nil
+                }
 
                 await MainActor.run {
                     appState.apply(snapshot)
@@ -122,7 +129,6 @@ actor SystemMonitorService {
                     }
                 }
 
-                await dataStore.persist(snapshot)
                 await historyStore?.ingest(snapshot)
                 await alertEngine.evaluate(snapshot, interval: intervalSeconds)
                 await batteryAlertService.evaluate(snapshot.batterySnapshot)

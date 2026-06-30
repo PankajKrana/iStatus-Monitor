@@ -83,6 +83,8 @@ struct ModuleMenuBarPopover: View {
         }
         .padding(12)
         .frame(width: 320)
+        .onAppear { appState.beginInsightViewing() }
+        .onDisappear { appState.endInsightViewing() }
     }
 
     private var header: some View {

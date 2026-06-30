@@ -38,7 +38,10 @@ struct AlertEngineTests {
     init() {
         suiteName = "AlertEngineTests-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
-        engine = AlertEngine(defaults: defaults, seedDefaultRules: false, notifier: StubNotifier())
+        // Pass a separately-regioned instance (same suite → same backing store) so
+        // the non-Sendable `defaults` isn't sent into the actor while `self` still
+        // aliases it (Swift 6 region checking).
+        engine = AlertEngine(defaults: Self.makeDefaults(suite: suiteName), seedDefaultRules: false, notifier: StubNotifier())
     }
 
     /// A fresh `UserDefaults` bound to a test suite. Used to build a second engine
@@ -475,6 +478,72 @@ struct AlertEngineTests {
         await denyEngine.evaluate(createMockSnapshot(cpu: 95))
 
         #expect((await denyEngine.getHistory()).isEmpty)
+    }
+
+    // MARK: - Snooze Tests
+
+    @Test("snoozed rule is suppressed until the snooze passes")
+    func perRuleSnoozeSuppresses() async throws {
+        let id = UUID()
+        let rule = AlertRule(
+            id: id, metric: .cpu, condition: .above, threshold: 80,
+            cooldown: 0, isEnabled: true, label: "High CPU"
+        )
+        await engine.upsertRule(rule)
+        let hot = createMockSnapshot(cpu: 95)
+
+        await engine.evaluate(hot)
+        #expect(await engine.getHistory().count == 1)
+
+        // Snoozed into the future → no new alert.
+        await engine.snoozeRule(id: id, until: Date().addingTimeInterval(3_600))
+        await engine.evaluate(hot)
+        #expect(await engine.getHistory().count == 1)
+
+        // Resume → fires again.
+        await engine.clearSnooze(id: id)
+        await engine.evaluate(hot)
+        #expect(await engine.getHistory().count == 2)
+    }
+
+    @Test("a past snooze date does not suppress")
+    func expiredSnoozeFires() async throws {
+        let id = UUID()
+        let rule = AlertRule(
+            id: id, metric: .cpu, condition: .above, threshold: 80,
+            cooldown: 0, isEnabled: true, label: "High CPU",
+            snoozedUntil: Date().addingTimeInterval(-1)
+        )
+        await engine.upsertRule(rule)
+
+        await engine.evaluate(createMockSnapshot(cpu: 95))
+        #expect(await engine.getHistory().count == 1)
+    }
+
+    @Test("snooze all suppresses every rule until resumed")
+    func globalSnoozeSuppresses() async throws {
+        let rule = AlertRule(
+            id: UUID(), metric: .cpu, condition: .above, threshold: 80,
+            cooldown: 0, isEnabled: true, label: "High CPU"
+        )
+        await engine.upsertRule(rule)
+        let hot = createMockSnapshot(cpu: 95)
+
+        await engine.snoozeAll(until: Date().addingTimeInterval(3_600))
+        #expect(await engine.currentGlobalSnooze() != nil)
+        await engine.evaluate(hot)
+        #expect(await engine.getHistory().isEmpty)
+
+        await engine.clearGlobalSnooze()
+        #expect(await engine.currentGlobalSnooze() == nil)
+        await engine.evaluate(hot)
+        #expect(await engine.getHistory().count == 1)
+    }
+
+    @Test("currentGlobalSnooze ignores an elapsed date")
+    func globalSnoozeExpiry() async throws {
+        await engine.snoozeAll(until: Date().addingTimeInterval(-1))
+        #expect(await engine.currentGlobalSnooze() == nil)
     }
 
     // MARK: - Helper Functions
