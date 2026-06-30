@@ -9,7 +9,7 @@ struct CircularGauge: View {
     let icon: String?
     let title: String?
     let label: String?
-    var strokeWidth: CGFloat = 12
+    var strokeWidth: CGFloat = 8
 
     init(
         value: Double,
@@ -18,7 +18,7 @@ struct CircularGauge: View {
         icon: String? = nil,
         title: String? = nil,
         label: String? = nil,
-        strokeWidth: CGFloat = 12
+        strokeWidth: CGFloat = 8
     ) {
         self.value = value
         self.maximum = maximum
@@ -46,16 +46,10 @@ struct CircularGauge: View {
                 Circle()
                     .stroke(Color.gray.opacity(0.2), lineWidth: strokeWidth)
                 
-                // Gradient progress circle
                 Circle()
                     .trim(from: 0, to: CGFloat(percentage))
                     .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: [color.opacity(0.7), color]),
-                            center: .center,
-                            startAngle: .degrees(0),
-                            endAngle: .degrees(360)
-                        ),
+                        color,
                         style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))

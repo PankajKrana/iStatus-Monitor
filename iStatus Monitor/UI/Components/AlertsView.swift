@@ -423,7 +423,7 @@ private struct AlertHistoryRow: View {
                 Text(entry.ruleLabel)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Label(entry.metric.title, systemImage: entry.metric.systemImage)
                         .labelStyle(.titleAndIcon)
                         .foregroundStyle(metricColor(entry.metric))
@@ -495,7 +495,7 @@ private struct AlertDetailView: View {
             Text(label.uppercased())
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.tertiary)
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 if let symbol { Image(systemName: symbol).foregroundStyle(color ?? .primary) }
                 Text(value)
                     .font(.subheadline.weight(.medium))

@@ -55,7 +55,7 @@ struct StatusBadge: View {
     var size: CGFloat = 8
     
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: status.icon)
                 .font(.system(size: size * 1.5, weight: .semibold))
             

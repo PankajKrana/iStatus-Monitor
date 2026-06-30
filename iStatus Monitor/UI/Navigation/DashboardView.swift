@@ -278,7 +278,7 @@ struct DashboardView: View {
                             .frame(height: 32)
                     }
 
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         ForEach(miniStats, id: \.0) { label, value in
                             HStack {
                                 Text(label)
@@ -292,7 +292,7 @@ struct DashboardView: View {
                         }
                     }
                 }
-                .padding(14)
+                .padding(16)
             }
         }
         .buttonStyle(.plain)
@@ -301,7 +301,7 @@ struct DashboardView: View {
     private var systemBanner: some View {
         GlassCard(material: .regular, cornerRadius: 12) {
             HStack {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(systemInfo.computerName)
                         .font(.title2.weight(.semibold))
                     Text("\(systemInfo.osVersion) • \(systemInfo.chipName)")
@@ -318,7 +318,7 @@ struct DashboardView: View {
                     .font(.largeTitle)
                     .foregroundStyle(.tint)
             }
-            .padding(14)
+            .padding(16)
         }
     }
 
