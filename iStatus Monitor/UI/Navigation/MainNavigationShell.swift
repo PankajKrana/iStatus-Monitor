@@ -39,7 +39,7 @@ struct MainNavigationShell: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 if selectedTab == .cpu {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.secondary)
                         TextField("Filter processes", text: $searchText)
