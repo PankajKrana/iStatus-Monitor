@@ -33,7 +33,7 @@ struct OnboardingSheet: View {
                 .tag(2)
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(0 ..< 3, id: \.self) { index in
                     Circle()
                         .fill(index == currentPage ? Color.accentColor : Color.secondary.opacity(0.35))

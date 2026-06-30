@@ -66,7 +66,7 @@ struct GPUView: View {
                             }
 
                             if let total = gpu.vramTotalMB {
-                                VStack(alignment: .leading, spacing: 6) {
+                                VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Text("VRAM Usage")
                                             .font(.caption.weight(.semibold))
