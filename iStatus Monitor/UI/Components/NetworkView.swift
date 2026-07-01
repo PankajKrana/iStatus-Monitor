@@ -2,6 +2,8 @@ import Charts
 import SwiftUI
 
 struct NetworkView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let snapshot: NetworkSnapshot
 
     private var maxSpeed: UInt64 {
@@ -31,7 +33,7 @@ struct NetworkView: View {
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                 Text(Int(snapshot.interfaces.first?.downloadBytesPerSecond ?? 0).toNetworkSpeedString())
-                                    .font(.system(size: 28, weight: .light))
+                                    .font(.title2.monospacedDigit().weight(.light))
                                     .foregroundStyle(AppTheme.networkDownloadColor)
                             }
                             
@@ -43,7 +45,7 @@ struct NetworkView: View {
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                 Text(Int(snapshot.interfaces.first?.uploadBytesPerSecond ?? 0).toNetworkSpeedString())
-                                    .font(.system(size: 28, weight: .light))
+                                    .font(.title2.monospacedDigit().weight(.light))
                                     .foregroundStyle(AppTheme.networkUploadColor)
                             }
                             
@@ -53,19 +55,19 @@ struct NetworkView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text("Total Download (Launch)")
-                                    .font(.caption2)
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text(Int(snapshot.totalDownloadSinceLaunch).toMemoryString())
-                                    .font(.caption2.monospacedDigit())
+                                    .font(.caption.monospacedDigit())
                             }
                             HStack {
                                 Text("Total Upload (Launch)")
-                                    .font(.caption2)
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text(Int(snapshot.totalUploadSinceLaunch).toMemoryString())
-                                    .font(.caption2.monospacedDigit())
+                                    .font(.caption.monospacedDigit())
                             }
                         }
                     }
@@ -86,7 +88,7 @@ struct NetworkView: View {
                                             .font(.subheadline.weight(.semibold))
                                             .foregroundStyle(.primary)
                                         Text(iface.name)
-                                            .font(.caption2)
+                                            .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
@@ -105,7 +107,7 @@ struct NetworkView: View {
                                 GeometryReader { geo in
                                     ZStack(alignment: .leading) {
                                         RoundedRectangle(cornerRadius: 4)
-                                            .fill(Color.gray.opacity(0.15))
+                                            .fill(.quaternary)
 
                                         HStack(spacing: 2) {
                                             RoundedRectangle(cornerRadius: 4)
@@ -124,40 +126,40 @@ struct NetworkView: View {
                                     if let ipv4 = iface.ipv4Address {
                                         HStack {
                                             Text("IPv4")
-                                                .font(.caption2)
+                                                .font(.caption)
                                                 .foregroundStyle(.secondary)
                                             Spacer()
                                             Text(ipv4)
-                                                .font(.caption2.monospacedDigit())
+                                                .font(.caption.monospacedDigit())
                                         }
                                     }
                                     if let ipv6 = iface.ipv6Address {
                                         HStack {
                                             Text("IPv6")
-                                                .font(.caption2)
+                                                .font(.caption)
                                                 .foregroundStyle(.secondary)
                                             Spacer()
                                             Text(ipv6)
-                                                .font(.caption2.monospacedDigit())
+                                                .font(.caption.monospacedDigit())
                                                 .lineLimit(1)
                                                 .truncationMode(.middle)
                                         }
                                     }
                                     HStack {
                                         Text("Total Received")
-                                            .font(.caption2)
+                                            .font(.caption)
                                             .foregroundStyle(.secondary)
                                         Spacer()
                                         Text(Int(iface.totalBytesReceived).toMemoryString())
-                                            .font(.caption2.monospacedDigit())
+                                            .font(.caption.monospacedDigit())
                                     }
                                     HStack {
                                         Text("Total Sent")
-                                            .font(.caption2)
+                                            .font(.caption)
                                             .foregroundStyle(.secondary)
                                         Spacer()
                                         Text(Int(iface.totalBytesSent).toMemoryString())
-                                            .font(.caption2.monospacedDigit())
+                                            .font(.caption.monospacedDigit())
                                     }
                                 }
                             }
@@ -194,7 +196,7 @@ struct NetworkView: View {
                 }
             }
         }
-        .animation(AppTheme.springAnimation, value: snapshot)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
     }
 }
 

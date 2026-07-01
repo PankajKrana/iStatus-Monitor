@@ -1,17 +1,16 @@
 import SwiftUI
 
-/// A reusable glass morphism card component with blur and depth effects.
-/// Follows Apple's Glassmorphism aesthetic with Material backgrounds.
+/// A reusable grouped surface for metric panels.
 struct GlassCard<Content: View>: View {
     let content: Content
     var material: Material = .thin
     var padding: CGFloat = 16
-    var cornerRadius: CGFloat = 12
-    
+    var cornerRadius: CGFloat = 10
+
     init(
         material: Material = .thin,
         padding: CGFloat = 16,
-        cornerRadius: CGFloat = 12,
+        cornerRadius: CGFloat = 10,
         @ViewBuilder content: () -> Content
     ) {
         self.content = content()
@@ -19,12 +18,11 @@ struct GlassCard<Content: View>: View {
         self.padding = padding
         self.cornerRadius = cornerRadius
     }
-    
+
     var body: some View {
         content
             .padding(padding)
-            .background(material)
-            .cornerRadius(cornerRadius)
+            .background(.background.secondary, in: RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 
@@ -37,7 +35,7 @@ struct GlassCard<Content: View>: View {
             
             HStack {
                 Text("68%")
-                    .font(.system(size: 42, weight: .light))
+                    .font(.largeTitle.weight(.light))
                     .foregroundStyle(.blue)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
@@ -45,7 +43,7 @@ struct GlassCard<Content: View>: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("3.2 GHz")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }

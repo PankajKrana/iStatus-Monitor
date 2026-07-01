@@ -185,19 +185,9 @@ private struct EmptySectionView: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: symbol)
-                .font(.system(size: 42, weight: .light))
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.title3.weight(.semibold))
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(24)
+        ContentUnavailableView(title, systemImage: symbol, description: Text(message))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(24)
     }
 }
 

@@ -48,12 +48,16 @@ struct MenuBarExtraScene: Scene {
         ModuleMenuBarExtra(appState: appState, widgetManager: widgetManager, widgetId: id)
     }
 
-    /// Get reflects the active mode; set is a no-op so dragging the item out of
-    /// the menu bar does not silently switch modes.
+    /// Get reflects the active mode; set honors macOS menu bar customization by
+    /// moving out of compact mode when the combined item is removed.
     private var compactInsertedBinding: Binding<Bool> {
         Binding(
             get: { widgetManager.presentationMode == .compact },
-            set: { _ in /* mode is controlled only by Settings — no-op */ }
+            set: { isInserted in
+                if !isInserted, widgetManager.presentationMode == .compact {
+                    widgetManager.presentationMode = .module
+                }
+            }
         )
     }
 }

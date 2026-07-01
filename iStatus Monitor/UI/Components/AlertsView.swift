@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - SwiftUI visual mapping
+
 
 extension AlertSeverity {
     var color: Color {
@@ -103,9 +103,11 @@ private struct SnoozeMenu: View {
     }
 }
 
-// MARK: - AlertsView
+
 
 struct AlertsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Bindable var alertsStore: AlertsStore
 
     private enum Segment: String, CaseIterable, Identifiable {
@@ -142,7 +144,7 @@ struct AlertsView: View {
         }
     }
 
-    // MARK: Header
+    
 
     private var header: some View {
         HStack(spacing: 12) {
@@ -211,7 +213,7 @@ struct AlertsView: View {
         .padding(.bottom, 8)
     }
 
-    // MARK: Rules tab
+    
 
     private var rulesTab: some View {
         ScrollView {
@@ -299,7 +301,7 @@ struct AlertsView: View {
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
-        .animation(AppTheme.springAnimation, value: selectedEntryID)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: selectedEntryID)
     }
 
     private var historyToolbar: some View {
@@ -375,7 +377,7 @@ struct AlertsView: View {
     }
 }
 
-// MARK: - Severity filter chip
+
 
 private struct SeverityFilterChip: View {
     let title: String
@@ -386,28 +388,30 @@ private struct SeverityFilterChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Circle().fill(color).frame(width: 7, height: 7)
-                Text(title).font(.caption.weight(.medium))
-                Text("\(count)")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            Label {
+                HStack(spacing: 4) {
+                    Text(title).font(.caption.weight(.medium))
+                    Text("\(count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(
-                isSelected ? color.opacity(0.18) : Color.secondary.opacity(0.08),
-                in: Capsule()
-            )
+            .background(.quaternary, in: Capsule())
             .overlay(
-                Capsule().stroke(isSelected ? color.opacity(0.5) : .clear, lineWidth: 1)
+                Capsule().stroke(isSelected ? color : .clear, lineWidth: 1)
             )
+            .foregroundStyle(color)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(count) alerts")
     }
 }
 
-// MARK: - History row
+
 
 private struct AlertHistoryRow: View {
     let entry: AlertHistoryEntry
@@ -416,7 +420,7 @@ private struct AlertHistoryRow: View {
         HStack(spacing: 12) {
             Image(systemName: entry.severity.systemImage)
                 .foregroundStyle(entry.severity.color)
-                .font(.system(size: 15))
+                .font(.body)
                 .frame(width: 22)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -449,7 +453,7 @@ private struct AlertHistoryRow: View {
     }
 }
 
-// MARK: - Detail inspector
+
 
 private struct AlertDetailView: View {
     let entry: AlertHistoryEntry
@@ -493,7 +497,7 @@ private struct AlertDetailView: View {
     private func detailRow(_ label: String, _ value: String, color: Color? = nil, symbol: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
             HStack(spacing: 8) {
                 if let symbol { Image(systemName: symbol).foregroundStyle(color ?? .primary) }
@@ -505,7 +509,7 @@ private struct AlertDetailView: View {
     }
 }
 
-// MARK: - Rule card
+
 
 private struct AlertRuleCard: View {
     @State private var rule: AlertRule
@@ -631,7 +635,7 @@ private struct AlertRuleCard: View {
     private func save() { alertsStore.saveRule(rule) }
 }
 
-// MARK: - Add rule sheet
+
 
 private struct AddRuleSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -732,7 +736,7 @@ private struct AddRuleSheet: View {
     }
 }
 
-// MARK: - Empty state
+
 
 private struct EmptyStateView<Accessory: View>: View {
     let symbol: String
@@ -750,17 +754,8 @@ private struct EmptyStateView<Accessory: View>: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(.tertiary)
-            Text(title).font(.title3.weight(.semibold))
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
+            ContentUnavailableView(title, systemImage: symbol, description: Text(message))
             accessory()
-                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
         .padding(24)

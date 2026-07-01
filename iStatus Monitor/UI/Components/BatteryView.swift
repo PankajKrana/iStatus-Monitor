@@ -2,6 +2,8 @@ import Charts
 import SwiftUI
 
 struct BatteryView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let snapshot: BatterySnapshot
 
     private var healthColor: Color {
@@ -149,15 +151,15 @@ struct BatteryView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Text("Cycles Until 80%")
-                                        .font(.caption2)
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
                                     Spacer()
                                     Text("\(estimatedCyclesTo80) cycles")
-                                        .font(.caption2.monospacedDigit())
+                                        .font(.caption.monospacedDigit())
                                         .foregroundStyle(.primary)
                                 }
                                 Text("Serial: \(snapshot.serialNumber)")
-                                    .font(.caption2)
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
@@ -207,7 +209,7 @@ struct BatteryView: View {
                 }
             }
         }
-        .animation(AppTheme.springAnimation, value: snapshot)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
     }
 }
 

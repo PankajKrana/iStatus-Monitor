@@ -2,6 +2,8 @@ import Charts
 import SwiftUI
 
 struct MemoryView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let snapshot: MemorySnapshot
 
     // In-memory trend buffer. The view receives a fresh snapshot each monitoring
@@ -30,7 +32,7 @@ struct MemoryView: View {
                 memoryDetailsSection
             }
         }
-        .animation(AppTheme.springAnimation, value: snapshot)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
         .onAppear { appendTrend(snapshot) }
         .onChange(of: snapshot.timestamp) { appendTrend(snapshot) }
     }
@@ -271,7 +273,7 @@ struct MemoryView: View {
     private func trendStat(_ label: String, _ percent: Int) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
             Text("\(percent)%")
                 .font(.subheadline.weight(.semibold).monospacedDigit())

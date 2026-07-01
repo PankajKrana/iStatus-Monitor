@@ -3,6 +3,8 @@ import Darwin
 import SwiftUI
 
 struct CPUView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let snapshot: CPUSnapshot
     let temperatureCelsius: Double?
     let searchText: String
@@ -116,13 +118,13 @@ struct CPUView: View {
                             ForEach(filteredCores, id: \.coreIndex) { core in
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text("C\(core.coreIndex)")
-                                        .font(.caption2)
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
 
                                     GeometryReader { geo in
                                         ZStack(alignment: .bottom) {
                                             RoundedRectangle(cornerRadius: 4)
-                                                .fill(Color.gray.opacity(0.18))
+                                                .fill(.quaternary)
 
                                             RoundedRectangle(cornerRadius: 4)
                                                 .fill(AppTheme.cpuColor)
@@ -132,7 +134,7 @@ struct CPUView: View {
                                     .frame(height: 52)
 
                                     Text("\(Int(core.active * 100))%")
-                                        .font(.caption2.monospacedDigit())
+                                        .font(.caption.monospacedDigit())
                                         .contentTransition(.numericText())
                                 }
                             }
@@ -141,6 +143,6 @@ struct CPUView: View {
                 }
             }
         }
-        .animation(AppTheme.springAnimation, value: snapshot)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
     }
 }

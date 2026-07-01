@@ -85,12 +85,14 @@ struct SettingsView: View {
                     }
                 }
 
-                HStack {
-                    Text("Update interval")
-                    Slider(value: $updateInterval, in: 0.5 ... 5.0, step: 0.5)
-                    Text("\(String(format: "%.1fs", updateInterval))")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                LabeledContent("Update interval") {
+                    HStack {
+                        Slider(value: $updateInterval, in: 0.5 ... 5.0, step: 0.5)
+                        Text("\(String(format: "%.1fs", updateInterval))")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(minWidth: 44, alignment: .trailing)
+                    }
                 }
             }
         }

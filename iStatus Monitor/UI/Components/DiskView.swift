@@ -144,7 +144,7 @@ struct DiskView: View {
                         }
 
                         Text(volume.mountPoint)
-                            .font(.caption2.monospaced())
+                            .font(.caption.monospaced())
                             .foregroundStyle(.tertiary)
                     }
                 }
