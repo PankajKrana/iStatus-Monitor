@@ -2,6 +2,8 @@ import Charts
 import SwiftUI
 
 struct GPUView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let snapshot: GPUSnapshot
 
     var body: some View {
@@ -131,7 +133,7 @@ struct GPUView: View {
                 }
             }
         }
-        .animation(AppTheme.springAnimation, value: snapshot)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
     }
 
     private func vramRatio(totalMB: Int, usedMB: Int?) -> Double {

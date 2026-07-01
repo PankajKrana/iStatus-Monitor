@@ -55,26 +55,21 @@ struct StatusBadge: View {
     var size: CGFloat = 8
     
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: status.icon)
-                .font(.system(size: size * 1.5, weight: .semibold))
-            
-            Text(status.text)
-                .font(.caption.weight(.semibold))
-        }
-        .foregroundStyle(status.color)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(status.color.opacity(0.1))
-        .cornerRadius(6)
+        Label(status.text, systemImage: status.icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(status.color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            .accessibilityLabel(status.text)
     }
 }
 
-/// Inline status indicator dot
+/// Inline status indicator that distinguishes state by icon as well as color.
 struct StatusDot: View {
     enum Status {
         case good, warning, critical
-        
+
         var color: Color {
             switch self {
             case .good: return .green
@@ -82,16 +77,32 @@ struct StatusDot: View {
             case .critical: return .red
             }
         }
+
+        var icon: String {
+            switch self {
+            case .good: return "checkmark.circle.fill"
+            case .warning: return "exclamationmark.triangle.fill"
+            case .critical: return "xmark.octagon.fill"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .good: return "Normal"
+            case .warning: return "Warning"
+            case .critical: return "Critical"
+            }
+        }
     }
-    
+
     let status: Status
-    var size: CGFloat = 8
-    
+    var size: CGFloat = 12
+
     var body: some View {
-        Circle()
-            .fill(status.color)
-            .frame(width: size, height: size)
-            .shadow(color: status.color.opacity(0.5), radius: 4, x: 0, y: 2)
+        Image(systemName: status.icon)
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(status.color)
+            .accessibilityLabel(status.label)
     }
 }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingSheet: View {
     @State private var currentPage: Int = 0
     @State private var animateSymbol: Bool = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -45,9 +46,7 @@ struct OnboardingSheet: View {
             HStack {
                 if currentPage > 0 {
                     Button("Back") {
-                        withAnimation(.snappy) {
-                            currentPage -= 1
-                        }
+                        changePage(by: -1)
                     }
                 }
 
@@ -55,9 +54,7 @@ struct OnboardingSheet: View {
 
                 if currentPage < 2 {
                     Button("Next") {
-                        withAnimation(.snappy) {
-                            currentPage += 1
-                        }
+                        changePage(by: 1)
                     }
                     .keyboardShortcut(.defaultAction)
                 } else {
@@ -72,7 +69,7 @@ struct OnboardingSheet: View {
         }
         .frame(width: 620, height: 430)
         .onAppear {
-            animateSymbol = true
+            animateSymbol = !reduceMotion
         }
     }
 
@@ -83,9 +80,9 @@ struct OnboardingSheet: View {
             Image(systemName: symbol)
                 .font(.system(size: 72, weight: .medium))
                 .foregroundStyle(tint)
-                .scaleEffect(animateSymbol ? 1.08 : 0.92)
-                .symbolEffect(.pulse.byLayer, options: .repeating, isActive: animateSymbol)
-                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: animateSymbol)
+                .scaleEffect(animateSymbol ? 1.08 : 1)
+                .symbolEffect(.pulse.byLayer, options: .repeating, isActive: animateSymbol && !reduceMotion)
+                .animation(reduceMotion ? .none : .easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: animateSymbol)
 
             Text(title)
                 .font(.title2.weight(.bold))
@@ -99,6 +96,16 @@ struct OnboardingSheet: View {
             Spacer()
         }
         .padding(24)
+    }
+
+    private func changePage(by delta: Int) {
+        if reduceMotion {
+            currentPage += delta
+        } else {
+            withAnimation(.snappy) {
+                currentPage += delta
+            }
+        }
     }
 
     private func completeOnboarding() {
