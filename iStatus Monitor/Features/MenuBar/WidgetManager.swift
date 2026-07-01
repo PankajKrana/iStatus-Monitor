@@ -134,6 +134,11 @@ final class WidgetManager {
     }
 
     /// Enable/disable a widget by id.
+    func setWidgetEnabled(_ isEnabled: Bool, for id: String) {
+        configurationStore.setEnabled(isEnabled, for: id)
+    }
+
+    /// Enable/disable a widget by id.
     func toggleWidget(id: String) {
         configurationStore.toggleEnabled(for: id)
     }

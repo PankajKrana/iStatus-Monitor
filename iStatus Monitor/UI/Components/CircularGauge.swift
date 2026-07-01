@@ -3,6 +3,8 @@ import SwiftUI
 /// An animated circular gauge for displaying percentage-based metrics.
 /// Used for battery health, memory pressure, disk usage, etc.
 struct CircularGauge: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let value: Double
     let maximum: Double
     let color: Color
@@ -44,7 +46,7 @@ struct CircularGauge: View {
             ZStack {
                 // Background track
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: strokeWidth)
+                    .stroke(.quaternary, lineWidth: strokeWidth)
                 
                 Circle()
                     .trim(from: 0, to: CGFloat(percentage))
@@ -53,23 +55,23 @@ struct CircularGauge: View {
                         style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .animation(AppTheme.springAnimation, value: percentage)
+                    .animation(reduceMotion ? .none : AppTheme.springAnimation, value: percentage)
                 
                 // Center content
                 VStack(spacing: 2) {
                     if let icon = icon {
                         Image(systemName: icon)
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.title3.weight(.semibold))
                             .foregroundStyle(color)
                     }
                     
                     Text("\(Int(percentage * 100))%")
-                        .font(.system(size: 28, weight: .light))
+                        .font(.title.monospacedDigit().weight(.light))
                         .foregroundStyle(color)
                     
                     if let label = label {
                         Text(label)
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }

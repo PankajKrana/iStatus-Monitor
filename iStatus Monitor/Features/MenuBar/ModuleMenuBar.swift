@@ -30,12 +30,15 @@ struct ModuleMenuBarExtra: Scene {
         .menuBarExtraStyle(.window)
     }
 
-    /// Get reflects mode + enabled state; set is deliberately ignored so menu bar
-    /// customization can't toggle a widget's configuration.
+    /// Get reflects mode + enabled state; set honors macOS menu bar customization
+    /// by disabling the widget when its item is removed.
     private var isInsertedBinding: Binding<Bool> {
         Binding(
             get: { widgetManager.presentationMode == .module && widgetManager.isEnabled(widgetId) },
-            set: { _ in /* visibility controlled only by Settings — no-op */ }
+            set: { isInserted in
+                guard widgetManager.presentationMode == .module else { return }
+                widgetManager.setWidgetEnabled(isInserted, for: widgetId)
+            }
         )
     }
 }

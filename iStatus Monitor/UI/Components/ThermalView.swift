@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ThermalView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let snapshot: ThermalSnapshot
 
     private let zoneOrder: [ThermalZone] = [.cpu, .gpu, .battery, .heatsink, .ambient]
@@ -42,7 +44,7 @@ struct ThermalView: View {
 
                                         ZStack {
                                             Circle()
-                                                .stroke(Color.gray.opacity(0.2), lineWidth: 3)
+                                                .stroke(.quaternary, lineWidth: 3)
 
                                             Circle()
                                                 .trim(from: 0, to: min(fan.percentOfMax / 100.0, 1))
@@ -53,7 +55,7 @@ struct ThermalView: View {
                                                 Text("\(Int(fan.rpm))")
                                                     .font(.title3.weight(.semibold))
                                                 Text("RPM")
-                                                    .font(.caption2)
+                                                    .font(.caption)
                                                     .foregroundStyle(.secondary)
                                             }
                                         }
@@ -61,11 +63,11 @@ struct ThermalView: View {
 
                                         HStack(spacing: 4) {
                                             Text("\(Int(fan.minRPM))")
-                                                .font(.caption2)
+                                                .font(.caption)
                                                 .foregroundStyle(.secondary)
                                             Spacer()
                                             Text("\(Int(fan.maxRPM))")
-                                                .font(.caption2)
+                                                .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
                                     }
@@ -98,7 +100,7 @@ struct ThermalView: View {
                                                 .font(.subheadline.weight(.semibold))
                                                 .foregroundStyle(.primary)
                                             Text(sensor.key)
-                                                .font(.caption2)
+                                                .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
 
@@ -109,14 +111,14 @@ struct ThermalView: View {
                                                 Text(String(format: "%.1f°C", sensor.celsius))
                                                     .font(.title3.weight(.semibold))
                                                 Text(String(format: "%.1f°F", sensor.fahrenheit))
-                                                    .font(.caption2)
+                                                    .font(.caption)
                                                     .foregroundStyle(.secondary)
                                             }
 
-                                            Circle()
-                                                .fill(sensorColor(sensor.celsius))
-                                                .frame(width: 12, height: 12)
-                                                .shadow(color: sensorColor(sensor.celsius).opacity(0.5), radius: 4, x: 0, y: 2)
+                                            Image(systemName: sensorSymbol(sensor.celsius))
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(sensorColor(sensor.celsius))
+                                                .accessibilityLabel(sensorStatusLabel(sensor.celsius))
                                         })
                                     }
                                 }
@@ -126,7 +128,7 @@ struct ThermalView: View {
                 }
             }
         }
-        .animation(AppTheme.springAnimation, value: snapshot)
+        .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
     }
 
     private func zoneTitle(_ zone: ThermalZone) -> String {
@@ -174,6 +176,18 @@ struct ThermalView: View {
         if celsius < 75 { return .yellow }
         if celsius < 90 { return .orange }
         return .red
+    }
+
+    private func sensorSymbol(_ celsius: Double) -> String {
+        if celsius < 75 { return "checkmark.circle.fill" }
+        if celsius < 90 { return "exclamationmark.triangle.fill" }
+        return "xmark.octagon.fill"
+    }
+
+    private func sensorStatusLabel(_ celsius: Double) -> String {
+        if celsius < 75 { return "Normal temperature" }
+        if celsius < 90 { return "High temperature" }
+        return "Critical temperature"
     }
 }
 
