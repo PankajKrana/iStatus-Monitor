@@ -14,11 +14,7 @@ struct NetworkView: View {
         return max(maxInterfaceSpeed, 1)
     }
 
-    // Interfaces reaching the snapshot are already up+running+non-loopback, so
-    // "active" here means it actually carries a connection (has an IP, is the
-    // default route, or is moving bytes). Everything else — awdl, empty bridges,
-    // addressless utun — is noise we collapse away.
-    // ponytail: IP/traffic heuristic; swap for a real link-state probe if it misclassifies.
+    // Considered active if it has an address, is default route, or is moving bytes.
     private var activeInterfaces: [InterfaceStats] {
         snapshot.interfaces.filter(\.isActiveConnection)
     }
@@ -27,15 +23,14 @@ struct NetworkView: View {
         snapshot.interfaces.filter { !$0.isActiveConnection }
     }
 
-    /// The connection shown in the hero card: default route first, else the
-    /// first thing carrying an address/traffic.
+    /// Primary connection (default route or first active).
     private var primary: InterfaceStats? { activeInterfaces.first }
 
     private var activeVPN: InterfaceStats? {
         activeInterfaces.first { $0.type == .vpn }
     }
 
-    /// The physical link a VPN rides on top of.
+    /// Physical link a VPN rides on.
     private var vpnUnderlying: InterfaceStats? {
         activeInterfaces.first { $0.type == .wifi || $0.type == .ethernet }
     }
@@ -50,8 +45,6 @@ struct NetworkView: View {
         }
         .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
     }
-
-    // MARK: Active Connection
 
     private var activeConnectionCard: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -280,9 +273,7 @@ struct NetworkView: View {
             }
 
             GlassCard(material: .thin) {
-                // Binds directly to the monitor's 60-point rolling buffer — no
-                // extra storage, no timer. Fresh snapshots animate via the
-                // body-level `.animation(value: snapshot)`.
+                // Binds to the monitor's rolling buffer; fresh snapshots animate via `.animation(value:)`.
                 Chart(snapshot.history60s) { point in
                     areaMark(x: point.timestamp, y: point.downloadBytesPerSecond, color: AppTheme.networkDownloadColor)
                     areaMark(x: point.timestamp, y: point.uploadBytesPerSecond, color: AppTheme.networkUploadColor)
@@ -366,8 +357,7 @@ private extension InterfaceStats {
             || uploadBytesPerSecond > 0)
     }
 
-    /// SF Symbol per interface kind. Name-prefixed kinds (bridge/awdl) win over
-    /// the coarse `type`, everything else falls through to `type`.
+    /// SF Symbol per interface kind.
     var sfSymbol: String {
         if name.hasPrefix("bridge") { return "point.3.connected.trianglepath.dotted" }
         if name.hasPrefix("awdl") || name.hasPrefix("llw") { return "dot.radiowaves.left.and.right" }

@@ -44,7 +44,6 @@ struct CircularGauge: View {
             }
             
             ZStack {
-                // Background track
                 Circle()
                     .stroke(.quaternary, lineWidth: strokeWidth)
                 
@@ -56,8 +55,7 @@ struct CircularGauge: View {
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(reduceMotion ? .none : AppTheme.springAnimation, value: percentage)
-                
-                // Center content
+
                 VStack(spacing: 2) {
                     if let icon = icon {
                         Image(systemName: icon)

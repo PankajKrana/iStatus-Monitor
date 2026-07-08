@@ -10,7 +10,8 @@ struct MainNavigationShell: View {
     @SceneStorage("last-selected-tab") private var lastSelectedTab: String = NavigationTab.dashboard.rawValue
     @SceneStorage("main-window-frame") private var windowFrameStorage: String = ""
 
-    // User-chosen accent, applied app-wide via `.tint` (Settings → Appearance).
+    // Optional custom accent applied app-wide when not following system.
+    @AppStorage("useSystemAccent") private var useSystemAccent: Bool = true
     @AppStorage("accentRed") private var accentRed: Double = 0.15
     @AppStorage("accentGreen") private var accentGreen: Double = 0.50
     @AppStorage("accentBlue") private var accentBlue: Double = 0.95
@@ -34,24 +35,8 @@ struct MainNavigationShell: View {
             detailContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle(selectedTab.title)
-                .navigationSubtitle(String(format: "CPU %.1f%%", appState.cpu.usagePercent))
         }
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                if selectedTab == .cpu {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField("Filter processes", text: $searchText)
-                            .textFieldStyle(.plain)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .frame(width: 240)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-            }
-
             ToolbarItemGroup(placement: .primaryAction) {
                 ShareLink(item: exportMetricsData()) {
                     Label("Share", systemImage: "square.and.arrow.up")
@@ -59,13 +44,13 @@ struct MainNavigationShell: View {
                 .help("Share current metrics")
 
                 SettingsLink {
-                    Image(systemName: "gearshape")
+                    Label("Settings", systemImage: "gearshape")
                 }
                 .help("Open Settings")
             }
         }
         .frame(minWidth: 900, minHeight: 600)
-        .tint(Color(red: accentRed, green: accentGreen, blue: accentBlue))
+        .tint(useSystemAccent ? nil : Color(red: accentRed, green: accentGreen, blue: accentBlue))
         .background(WindowFrameBridge(frameStorage: $windowFrameStorage))
         .onAppear {
             restoreSelection()
@@ -73,9 +58,11 @@ struct MainNavigationShell: View {
         }
         .onChange(of: selectedTab) { _, newTab in
             lastSelectedTab = newTab.rawValue
+            // Clear CPU process filter when leaving the CPU tab.
+            if newTab != .cpu { searchText = "" }
         }
         .sheet(isPresented: $showOnboarding) {
-            OnboardingSheet()
+            OnboardingSheet(onRequestNotifications: alertsStore.requestNotificationAccess)
                 .interactiveDismissDisabled()
         }
     }
@@ -91,6 +78,7 @@ struct MainNavigationShell: View {
             if let snapshot = appState.cpuSnapshot {
                 CPUView(snapshot: snapshot, temperatureCelsius: appState.cpu.temperatureCelsius, searchText: searchText)
                     .padding(16)
+                    .searchable(text: $searchText, placement: .toolbar, prompt: "Filter processes")
             } else {
                 EmptySectionView(symbol: "cpu", title: "No CPU Data", message: "CPU metrics will appear when monitoring starts.")
             }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 import Combine
@@ -22,7 +23,6 @@ struct DashboardView: View {
                 systemBanner
 
                 LazyVGrid(columns: columns, spacing: 16) {
-                    // CPU Card
                     dashboardCard(
                         title: "CPU",
                         metric: String(format: "%.1f%%", appState.cpu.usagePercent),
@@ -38,7 +38,6 @@ struct DashboardView: View {
                         onNavigate(.cpu)
                     }
 
-                    // GPU Card
                     dashboardCard(
                         title: "GPU",
                         metric: String(format: "%.1f%%", appState.gpu.usagePercent),
@@ -54,7 +53,6 @@ struct DashboardView: View {
                         onNavigate(.gpu)
                     }
 
-                    // Memory Card
                     dashboardCard(
                         title: "Memory",
                         metric: String(format: "%.1f%%", appState.ram.usedPercent),
@@ -70,7 +68,6 @@ struct DashboardView: View {
                         onNavigate(.memory)
                     }
 
-                    // Disk Card
                     dashboardCard(
                         title: "Disk",
                         metric: appState.diskSnapshot?.primaryVolume.map { String(format: "%.0f%%", $0.usedPercent) } ?? "--%",
@@ -88,7 +85,6 @@ struct DashboardView: View {
                         onNavigate(.disk)
                     }
 
-                    // Network Card
                     dashboardCard(
                         title: "Network",
                         metric: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s",
@@ -110,7 +106,6 @@ struct DashboardView: View {
                         onNavigate(.network)
                     }
                     
-                    // Battery Card
                     dashboardCard(
                         title: "Battery",
                         metric: appState.batterySnapshot.map { String(format: "%.0f%%", $0.chargePercent) } ?? "N/A",
@@ -126,7 +121,6 @@ struct DashboardView: View {
                         onNavigate(.battery)
                     }
 
-                    // Temperature Card
                     dashboardCard(
                         title: "Thermal",
                         metric: appState.thermalSnapshot.map {
@@ -295,7 +289,8 @@ struct DashboardView: View {
                 .padding(16)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DashboardCardButtonStyle())
+        .accessibilityHint("Opens \(title) details")
     }
 
     private var systemBanner: some View {
@@ -475,6 +470,37 @@ struct SystemInfo {
             osVersion: osVersion,
             chipName: chipName
         )
+    }
+}
+
+/// Button style for the tappable dashboard cards. Adds the macOS hover and
+/// pressed affordances a plain button lacks, so users can tell the cards are
+/// interactive: a pointer cursor, a subtle lift on hover, and a scale-down on
+/// press. Reduce Motion collapses the animation but keeps the highlight.
+private struct DashboardCardButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.primary.opacity(isHovering ? 0.06 : 0))
+            )
+            .animation(reduceMotion ? .none : .easeOut(duration: 0.12),
+                       value: isHovering)
+            .animation(reduceMotion ? .none : .easeOut(duration: 0.12),
+                       value: configuration.isPressed)
+            .onHover { hovering in
+                isHovering = hovering
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

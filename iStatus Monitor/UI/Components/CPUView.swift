@@ -55,7 +55,6 @@ struct CPUView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Hero Section
                 GlassCard(material: .thin, padding: 16) {
                     VStack(alignment: .leading, spacing: 14) {
                         Text("CPU Overview")
@@ -63,7 +62,6 @@ struct CPUView: View {
                             .foregroundStyle(.primary)
 
                         HStack(spacing: 20) {
-                            // Circular gauge
                             CircularGauge(
                                 value: Double(snapshot.overallLoad) * 100,
                                 color: AppTheme.cpuColor,
@@ -105,7 +103,6 @@ struct CPUView: View {
                     }
                 }
 
-                // Per-Core Heatmap Section
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Per-Core Usage")
                         .font(.headline)

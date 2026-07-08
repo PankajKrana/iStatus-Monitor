@@ -116,20 +116,24 @@ struct ModuleMenuBarPopover: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 8) {
+        // Standard menu-bar-extra order: primary action first, then a divider,
+        // Settings…, and Quit at the very bottom (with the system ⌘Q shortcut).
+        VStack(alignment: .leading, spacing: 8) {
             Button("Open Dashboard") {
                 openWindow(id: iStatus_MonitorApp.dashboardWindowID)
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
-            HStack {
-                SettingsLink {
-                    Text("Settings…")
-                }
-                Spacer()
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
+
+            Divider()
+
+            SettingsLink {
+                Text("Settings…")
             }
+
+            Button("Quit iStatus Monitor") {
+                NSApplication.shared.terminate(nil)
+            }
+            .keyboardShortcut("q")
         }
     }
 

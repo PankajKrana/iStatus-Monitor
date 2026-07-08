@@ -1,11 +1,10 @@
 import Foundation
 
-// Metric strings are formatted via the shared `MetricFormat` helpers so the
-// menu bar, popovers, and dashboard all render values identically.
+// Metric strings are formatted via shared `MetricFormat` helpers for consistency.
 
 // MARK: - CPU
 
-/// Overall CPU load. Reads `appState.cpu.usagePercent`. Always available.
+/// Overall CPU load from `appState.cpu.usagePercent`.
 nonisolated struct CPUWidget: MenuBarWidget {
     let id = "cpu"
     let name = "CPU"
@@ -28,8 +27,7 @@ nonisolated struct CPUWidget: MenuBarWidget {
 
 // MARK: - RAM
 
-/// Memory pressure as used-percent. Reads `appState.ram.usedPercent`.
-/// Unavailable until the first sample populates `totalBytes`.
+/// Memory pressure as used-percent; unavailable until total is known.
 nonisolated struct RAMWidget: MenuBarWidget {
     let id = "ram"
     let name = "RAM"
@@ -55,8 +53,7 @@ nonisolated struct RAMWidget: MenuBarWidget {
 
 // MARK: - GPU
 
-/// GPU utilization. Reads `appState.gpu.usagePercent`, gated on a GPU snapshot
-/// actually being present (Macs without a reportable GPU omit this widget).
+/// GPU utilization if a GPU snapshot is present.
 nonisolated struct GPUWidget: MenuBarWidget {
     let id = "gpu"
     let name = "GPU"
@@ -82,14 +79,12 @@ nonisolated struct GPUWidget: MenuBarWidget {
 
 // MARK: - Network
 
-/// Network throughput — informational only (never warns). Reads the per-second
-/// rates from `appState.network`, gated on a network snapshot being present.
+/// Network throughput (informational only).
 nonisolated struct NetworkWidget: MenuBarWidget {
     let id = "network"
     let name = "Network"
     let sfSymbol = "arrow.up.arrow.down"
-    // Informational: thresholds are unreachable so the default severity is
-    // always `.normal`; `severity(from:)` is also overridden for clarity.
+    // Informational: thresholds unreachable; severity stays `.normal`.
     let warningThreshold: Double = .infinity
     let criticalThreshold: Double = .infinity
 
@@ -119,8 +114,7 @@ nonisolated struct NetworkWidget: MenuBarWidget {
 
 // MARK: - Battery
 
-/// Battery charge. Reads `appState.batterySnapshot` (absent on desktops, so the
-/// widget is omitted there). Severity is **inverted** — low charge is bad.
+/// Battery charge (absent on desktops); severity is inverted (low is bad).
 nonisolated struct BatteryWidget: MenuBarWidget {
     let id = "battery"
     let name = "Battery"
@@ -152,8 +146,7 @@ nonisolated struct BatteryWidget: MenuBarWidget {
 
 // MARK: - SSD
 
-/// Internal storage usage. Reads `appState.disk.usedPercent`, unavailable until
-/// capacity has been sampled.
+/// Internal storage usage; unavailable until capacity is sampled.
 nonisolated struct SSDWidget: MenuBarWidget {
     let id = "ssd"
     let name = "SSD"
@@ -179,9 +172,7 @@ nonisolated struct SSDWidget: MenuBarWidget {
 
 // MARK: - Thermal
 
-/// Temperature. Displays the hottest sensor reading; severity is driven by the
-/// system `ThermalState`, not the raw temperature. Reads
-/// `appState.thermalSnapshot` (absent on hardware without sensors → omitted).
+/// Hottest sensor temperature; severity from `ThermalState`.
 nonisolated struct ThermalWidget: MenuBarWidget {
     let id = "thermal"
     let name = "Temp"
@@ -223,8 +214,7 @@ nonisolated struct ThermalWidget: MenuBarWidget {
 // MARK: - Built-in Catalogue
 
 extension WidgetRegistry {
-    /// The seven built-in widgets, in their default display order. Used by the
-    /// composition root to populate the registry.
+    /// The built-in widgets in their default order.
     @MainActor
     static func builtInWidgets() -> [any MenuBarWidget] {
         [
