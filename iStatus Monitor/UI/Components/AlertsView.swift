@@ -302,25 +302,11 @@ struct AlertsView: View {
             }
         }
         .animation(reduceMotion ? .none : AppTheme.springAnimation, value: selectedEntryID)
+        .searchable(text: $search, placement: .toolbar, prompt: "Search alerts")
     }
 
     private var historyToolbar: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search alerts", text: $search)
-                    .textFieldStyle(.plain)
-                if !search.isEmpty {
-                    Button { search = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-
             HStack(spacing: 8) {
                 SeverityFilterChip(title: "All", count: alertsStore.history.count,
                                    color: .secondary, isSelected: severityFilter == nil) {
@@ -732,7 +718,10 @@ private struct AddRuleSheet: View {
             }
             .padding(16)
         }
-        .frame(width: 440, height: 520)
+        // Grow with content instead of clipping at larger text sizes; the inner
+        // Form scrolls if it exceeds the ceiling on smaller screens.
+        .frame(width: 440)
+        .frame(minHeight: 520, maxHeight: 640)
     }
 }
 

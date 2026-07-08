@@ -5,67 +5,30 @@ struct SettingsView: View {
     @Bindable var menuBarSettings: MenuBarSettings
     let monitorService: SystemMonitorService
 
-    @State private var selectedSection: SettingsSection = .general
-
     @AppStorage("defaultTab") private var defaultTab: String = NavigationTab.dashboard.rawValue
     @AppStorage("updateInterval") private var updateInterval: Double = 1.0
 
+    @AppStorage("useSystemAccent") private var useSystemAccent: Bool = true
     @AppStorage("accentRed") private var accentRed: Double = 0.15
     @AppStorage("accentGreen") private var accentGreen: Double = 0.50
     @AppStorage("accentBlue") private var accentBlue: Double = 0.95
 
-    enum SettingsSection: String, CaseIterable, Identifiable {
-        case general
-        case appearance
-        case menuBar
-        case about
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .general: "General"
-            case .appearance: "Appearance"
-            case .menuBar: "Menu Bar"
-            case .about: "About"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .general: "gearshape"
-            case .appearance: "paintpalette"
-            case .menuBar: "menubar.rectangle"
-            case .about: "info.circle"
-            }
-        }
-    }
-
     var body: some View {
-        NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
-                Label(section.title, systemImage: section.icon)
-                    .tag(section)
-            }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190)
-            .listStyle(.sidebar)
-        } detail: {
-            settingsContent
-                .navigationTitle(selectedSection.title)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .frame(minWidth: 760, minHeight: 520)
-        .tint(Color(red: accentRed, green: accentGreen, blue: accentBlue))
-    }
+        TabView {
+            generalSettings
+                .tabItem { Label("General", systemImage: "gearshape") }
 
-    @ViewBuilder
-    private var settingsContent: some View {
-        switch selectedSection {
-        case .general: generalSettings
-        case .appearance: appearanceSettings
-        case .menuBar: MenuBarSettingsPanel(widgetManager: widgetManager, menuBarSettings: menuBarSettings)
-        case .about: aboutSettings
+            appearanceSettings
+                .tabItem { Label("Appearance", systemImage: "paintpalette") }
+
+            MenuBarSettingsPanel(widgetManager: widgetManager, menuBarSettings: menuBarSettings)
+                .tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }
+
+            aboutSettings
+                .tabItem { Label("About", systemImage: "info.circle") }
         }
+        .frame(width: 520)
+        .tint(useSystemAccent ? nil : Color(red: accentRed, green: accentGreen, blue: accentBlue))
     }
 
     private var generalSettings: some View {
@@ -99,15 +62,25 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .padding(16)
         .onChange(of: updateInterval) { _, newValue in
-            // Apply the new cadence immediately by restarting the sampling loop.
             Task { await monitorService.updateInterval(.seconds(newValue)) }
         }
     }
 
     private var appearanceSettings: some View {
         Form {
-            Section("Appearance") {
+            Section {
+                Toggle("Follow system accent color", isOn: $useSystemAccent)
+
                 ColorPicker("Accent color", selection: accentBinding, supportsOpacity: false)
+                    .disabled(useSystemAccent)
+            } header: {
+                Text("Appearance")
+            } footer: {
+                if useSystemAccent {
+                    Text("Using the accent color set in System Settings › Appearance.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
@@ -128,9 +101,8 @@ struct SettingsView: View {
                 .font(.headline)
             Text("Built with SwiftUI, Charts, SwiftData, and system frameworks for macOS telemetry.")
                 .foregroundStyle(.secondary)
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
     }
 

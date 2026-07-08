@@ -10,7 +10,6 @@ struct ThermalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Thermal State Hero
                 GlassCard(material: .thin, padding: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -27,7 +26,6 @@ struct ThermalView: View {
                     }
                 }
 
-                // Fans Section
                 if !snapshot.fans.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Fans")
@@ -83,7 +81,6 @@ struct ThermalView: View {
                     }
                 }
 
-                // Temperature Sensors by Zone
                 ForEach(zoneOrder, id: \.rawValue) { zone in
                     let sensors = snapshot.sensors.filter { $0.zone == zone }
                     if !sensors.isEmpty {

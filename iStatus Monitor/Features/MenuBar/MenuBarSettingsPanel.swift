@@ -1,15 +1,6 @@
 import SwiftUI
 
-// MARK: - Menu Bar Settings Panel
-
-/// The menu bar customization UI, designed to drop into the existing
-/// `SettingsView` as one more section (it is a plain `View`, not a new window).
-///
-/// All reads and writes flow through `WidgetManager`: the view never mutates
-/// `WidgetConfigurationStore` directly, holds no duplicate state, and contains
-/// no persistence or monitoring logic. Mutations go exclusively through
-/// `toggleWidget`, `moveWidget`, `setDisplayStyle`, `layout`, and
-/// `resetToDefaults`.
+/// Menu bar customization UI embedded in `SettingsView`. Reads/writes via `WidgetManager` only.
 struct MenuBarSettingsPanel: View {
     @Bindable var widgetManager: WidgetManager
     let menuBarSettings: MenuBarSettings
@@ -31,9 +22,7 @@ struct MenuBarSettingsPanel: View {
 
     // MARK: Dock
 
-    /// Hide the Dock icon and run only in the menu bar. Backed by
-    /// `MenuBarSettings.hideDockIcon` (inverse of `showDockIcon`), which persists
-    /// and applies the activation policy — no separate preference.
+    /// Hide the Dock icon and run only in the menu bar.
     private var dockSection: some View {
         Section("Dock") {
             Toggle(isOn: Binding(
@@ -52,9 +41,7 @@ struct MenuBarSettingsPanel: View {
 
     // MARK: Mode
 
-    /// Compact (single combined item) vs. Module (one item per enabled widget).
-    /// Purely presentation — switching modes never changes which widgets are
-    /// enabled.
+    /// Compact (single item) vs. Module (one per widget); presentation only.
     private var modeSection: some View {
         Section("Mode") {
             Picker("Mode", selection: $widgetManager.presentationMode) {
@@ -73,9 +60,7 @@ struct MenuBarSettingsPanel: View {
 
     // MARK: Preview
 
-    /// Live preview rendered with the *same* view as the real menu bar label
-    /// (`MenuBarLabelView`), driven by `widgetManager.menuBarSegments`. No
-    /// separate preview model — it reflects the current widgets and layout.
+    /// Live preview using the same label view as the real menu bar.
     private var previewSection: some View {
         Section("Preview") {
             HStack {
@@ -143,7 +128,7 @@ struct MenuBarSettingsPanel: View {
 
     // MARK: Bindings (routed through WidgetManager)
 
-    /// Reads live enabled state through the manager; writes via `toggleWidget`.
+    /// Enabled state routed through the manager.
     private func enabledBinding(for id: String) -> Binding<Bool> {
         Binding {
             widgetManager.configurationStore.configuration(for: id)?.isEnabled ?? false
@@ -152,7 +137,7 @@ struct MenuBarSettingsPanel: View {
         }
     }
 
-    /// Reads live display style through the manager; writes via `setDisplayStyle`.
+    /// Display style routed through the manager.
     private func displayStyleBinding(for id: String) -> Binding<WidgetDisplayStyle> {
         Binding {
             widgetManager.configurationStore.configuration(for: id)?.displayStyle ?? .default
@@ -162,10 +147,7 @@ struct MenuBarSettingsPanel: View {
     }
 }
 
-// MARK: - Widget Row
-
-/// One configurable widget: enable toggle (with icon + name) and a per-widget
-/// display-style picker. Pure presentation — all state comes in via bindings.
+/// One configurable widget row: enable toggle and per-widget style.
 private struct WidgetRow: View {
     let configuration: WidgetConfiguration
     let widget: (any MenuBarWidget)?

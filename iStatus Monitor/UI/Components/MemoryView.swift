@@ -6,10 +6,7 @@ struct MemoryView: View {
 
     let snapshot: MemorySnapshot
 
-    // In-memory trend buffer. The view receives a fresh snapshot each monitoring
-    // tick (~2s); we keep the last 5 minutes here. This is intentionally local and
-    // volatile — it does not touch the monitoring loop or historical persistence,
-    // and resets when navigating away from the Memory tab.
+    // In-memory trend buffer for the last 5 minutes; local/volatile.
     @State private var trend: [MemorySnapshot] = []
 
     private static let trendWindow: TimeInterval = 300
@@ -34,18 +31,15 @@ struct MemoryView: View {
         }
         .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
         .onAppear { appendTrend(snapshot) }
-        .onChange(of: snapshot.timestamp) { appendTrend(snapshot) }
+        .onChange(of: snapshot.timestamp) { _, _ in appendTrend(snapshot) }
     }
-
-    // MARK: - Memory Usage (gauge)
 
     private var memoryUsageCard: some View {
         GlassCard(material: .thin, padding: 16) {
             VStack(alignment: .leading, spacing: 14) {
                 sectionHeader("Memory Usage")
 
-                // Side-by-side on wide windows; stacks vertically when the card is
-                // too narrow to fit the gauge and metrics column on one row.
+                // Stacks vertically when too narrow to fit side-by-side.
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .center, spacing: 20) {
                         usageGauge
@@ -96,7 +90,7 @@ struct MemoryView: View {
         }
     }
 
-    // MARK: - Memory Pressure + Health
+    // MARK: Memory Pressure + Health
 
     private var memoryPressureSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -136,7 +130,7 @@ struct MemoryView: View {
         }
     }
 
-    // MARK: - Memory Composition (bar + labelled rows with percentages)
+    // MARK: Memory Composition
 
     private var memoryCompositionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -168,7 +162,7 @@ struct MemoryView: View {
         }
     }
 
-    // MARK: - Memory Trend (last 5 minutes)
+    // MARK: Memory Trend (last 5 minutes)
 
     @ViewBuilder
     private var memoryTrendSection: some View {
@@ -227,7 +221,7 @@ struct MemoryView: View {
         }
     }
 
-    // MARK: - Memory Details
+    // MARK: Memory Details
 
     private var memoryDetailsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -258,9 +252,9 @@ struct MemoryView: View {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: Helpers
 
-    // Derived from the trend buffer the chart already holds — no extra sampling.
+    // Derived from the trend buffer already held by the chart.
     private var trendStats: (current: Int, average: Int, peak: Int) {
         let values = trend.map { Double($0.usedRatio) * 100 }
         guard !values.isEmpty else { return (0, 0, 0) }
@@ -307,8 +301,7 @@ struct MemoryView: View {
             Text(value)
                 .font(.body.monospacedDigit())
                 .foregroundStyle(.secondary)
-            // Reserve the percentage column on every row so values stay aligned,
-            // even for rows (Total, Swap) that aren't a fraction of physical RAM.
+            // Reserve percentage column so rows stay aligned.
             Text(bytes.map { "(\(percentString($0)))" } ?? "")
                 .font(.body.monospacedDigit())
                 .foregroundStyle(.tertiary)
