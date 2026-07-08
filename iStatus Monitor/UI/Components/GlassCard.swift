@@ -20,9 +20,15 @@ struct GlassCard<Content: View>: View {
     }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
             .padding(padding)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: cornerRadius))
+            // Render the caller's chosen material as the actual card surface (the
+            // `material:` argument was previously stored but ignored). A hairline
+            // border gives the grouped surface definition in both appearances,
+            // matching native macOS card/sidebar treatment.
+            .background(material, in: shape)
+            .overlay(shape.strokeBorder(.separator, lineWidth: 0.5))
     }
 }
 

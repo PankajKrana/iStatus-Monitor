@@ -213,9 +213,9 @@ struct HistoryView: View {
         }
         .padding(16)
         .onAppear { viewModel.reload() }
-        .onChange(of: viewModel.metric) { _ in viewModel.reload() }
-        .onChange(of: viewModel.preset) { _ in viewModel.reload() }
-        .onChange(of: viewModel.customStart) { _ in viewModel.reload() }
-        .onChange(of: viewModel.customEnd) { _ in viewModel.reload() }
+        .onChange(of: viewModel.metric) { _, _ in viewModel.reload() }
+        .onChange(of: viewModel.preset) { _, _ in viewModel.reload() }
+        .onChange(of: viewModel.customStart) { _, _ in viewModel.reload() }
+        .onChange(of: viewModel.customEnd) { _, _ in viewModel.reload() }
     }
 }

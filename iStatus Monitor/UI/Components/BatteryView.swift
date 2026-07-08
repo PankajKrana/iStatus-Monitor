@@ -64,7 +64,6 @@ struct BatteryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Hero Battery Ring
                 GlassCard(material: .thin, padding: 16) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
@@ -128,7 +127,6 @@ struct BatteryView: View {
                     }
                 }
 
-                // Health Section
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Battery Health")
                         .font(.headline)
@@ -168,7 +166,6 @@ struct BatteryView: View {
                     }
                 }
 
-                // Charge History
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Charge History (24h)")
                         .font(.headline)
@@ -188,7 +185,6 @@ struct BatteryView: View {
                     }
                 }
 
-                // Health Degradation
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Health Degradation")
                         .font(.headline)

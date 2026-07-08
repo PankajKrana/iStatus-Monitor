@@ -14,9 +14,7 @@ final class MenuBarSettings {
         }
     }
 
-    /// Inverse of `showDockIcon`, exposed for a "Hide Dock Icon" control. Backed
-    /// entirely by `showDockIcon` — same UserDefaults key and the same
-    /// `applyActivationPolicy()` side effect — so there is no separate preference.
+    /// Inverse of `showDockIcon`, exposed for a "Hide Dock Icon" control.
     var hideDockIcon: Bool {
         get { !showDockIcon }
         set { showDockIcon = !newValue }
@@ -29,12 +27,10 @@ final class MenuBarSettings {
         }
     }
 
-    /// Set when an `SMAppService` registration change fails, so the UI can show
-    /// the user why the toggle did not take effect. Cleared on the next success.
+    /// Error message when toggling launch at login fails.
     private(set) var launchAtLoginError: String?
 
-    /// Guards against the revert assignment in `applyLaunchAtLogin` re-entering the
-    /// `didSet` side effect and looping.
+    /// Prevents `didSet` re-entry during revert in `applyLaunchAtLogin`.
     private var isRevertingLaunchAtLogin = false
 
     private let logger = Logger.menuBar
@@ -70,13 +66,11 @@ final class MenuBarSettings {
                     try SMAppService.mainApp.unregister()
                 }
             }
-            // Persist only the value the system actually accepted.
             defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
             launchAtLoginError = nil
             logger.info("Launch at login \(self.launchAtLogin ? "enabled" : "disabled", privacy: .public)")
         } catch {
-            // Registration was rejected (e.g. unsigned build, daemon refusal).
-            // Surface it and roll the toggle back so the UI never lies about state.
+            // Surface the failure and revert the toggle to reflect actual state.
             let intended = launchAtLogin
             logger.error("Launch at login \(intended ? "register" : "unregister", privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             launchAtLoginError = error.localizedDescription

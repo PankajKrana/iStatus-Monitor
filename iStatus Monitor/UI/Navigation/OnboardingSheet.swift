@@ -1,8 +1,13 @@
 import SwiftUI
 
 struct OnboardingSheet: View {
+    /// Requests notification authorization in-context (HIG: ask at the moment of
+    /// value). Injected so the sheet stays decoupled from the alerts store.
+    var onRequestNotifications: () -> Void = {}
+
     @State private var currentPage: Int = 0
     @State private var animateSymbol: Bool = false
+    @State private var notificationsRequested = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
@@ -22,7 +27,19 @@ struct OnboardingSheet: View {
                     subtitle: "Allow notifications to receive warning and critical alerts.",
                     symbol: "bell.badge.fill",
                     tint: .orange
-                )
+                ) {
+                    Button {
+                        onRequestNotifications()
+                        notificationsRequested = true
+                    } label: {
+                        Label(
+                            notificationsRequested ? "Notification Request Sent" : "Enable Notifications",
+                            systemImage: notificationsRequested ? "checkmark.circle.fill" : "bell.fill"
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(notificationsRequested)
+                }
                 .tag(1)
 
                 page(
@@ -36,11 +53,16 @@ struct OnboardingSheet: View {
 
             HStack(spacing: 8) {
                 ForEach(0 ..< 3, id: \.self) { index in
+                    let isCurrent = index == currentPage
                     Circle()
-                        .fill(index == currentPage ? Color.accentColor : Color.secondary.opacity(0.35))
-                        .frame(width: 7, height: 7)
+                        .fill(isCurrent ? Color.accentColor : Color.secondary.opacity(0.35))
+                        // Differentiate the current page by size as well as color,
+                        // so the indicator is legible without relying on hue alone.
+                        .frame(width: isCurrent ? 9 : 7, height: isCurrent ? 9 : 7)
                 }
             }
+            .accessibilityElement()
+            .accessibilityLabel("Page \(currentPage + 1) of 3")
             .padding(.bottom, 8)
 
             HStack {
@@ -67,13 +89,23 @@ struct OnboardingSheet: View {
             .padding(16)
             .background(.regularMaterial)
         }
-        .frame(width: 620, height: 430)
+        // Fixed width for a stable card, but let height grow so larger Dynamic
+        // Type / accessibility text sizes aren't clipped (HIG: accommodate all
+        // text sizes).
+        .frame(width: 620)
+        .frame(minHeight: 430)
         .onAppear {
             animateSymbol = !reduceMotion
         }
     }
 
-    private func page(title: String, subtitle: String, symbol: String, tint: Color) -> some View {
+    private func page<Accessory: View>(
+        title: String,
+        subtitle: String,
+        symbol: String,
+        tint: Color,
+        @ViewBuilder accessory: () -> Accessory = { EmptyView() }
+    ) -> some View {
         VStack(spacing: 18) {
             Spacer()
 
@@ -92,6 +124,8 @@ struct OnboardingSheet: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 420)
+
+            accessory()
 
             Spacer()
         }

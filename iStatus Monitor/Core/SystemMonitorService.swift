@@ -22,16 +22,11 @@ actor SystemMonitorService {
 
     private var loopTask: Task<Void, Never>?
 
-    /// Retained so the sampling interval can be changed at runtime (Settings →
-    /// Update interval) by restarting the loop against the same state. Set on
-    /// `start`, cleared on `stop`.
+    /// Retained to allow runtime interval changes.
     private weak var activeAppState: AppState?
     private var activeInterval: Duration = .seconds(1)
 
-    /// Incremented on every `start`. Each loop captures its generation and only
-    /// writes the terminal `isMonitoring = false` if it is still the current
-    /// generation — so a cancelled loop being torn down by `updateInterval`'s
-    /// stop→start cannot stomp the freshly-started loop's `isMonitoring = true`.
+    /// Incremented on each `start`. Ensures a cancelled loop from an interval change doesn't overwrite the new loop's `isMonitoring` state.
     private var loopGeneration = 0
 
     init(
@@ -66,16 +61,12 @@ actor SystemMonitorService {
     func start(appState: AppState, interval: Duration = .seconds(1)) {
         guard loopTask == nil else { return }
 
-        // Retain for runtime interval changes (see `updateInterval`).
         activeAppState = appState
         activeInterval = interval
         loopGeneration += 1
         let generation = loopGeneration
 
-        // Seconds per tick, derived from the actual loop interval so sustained
-        // ("for Ns") alert rules measure wall-clock time correctly even when the
-        // sampling interval differs from the 1s default (previously evaluate()
-        // always assumed its 1s default, drifting if the interval changed).
+        // Derive seconds per tick from the actual interval so sustained alert rules measure wall-clock time correctly.
         let intervalSeconds = Double(interval.components.seconds)
             + Double(interval.components.attoseconds) / 1_000_000_000_000_000_000
 
@@ -99,11 +90,7 @@ actor SystemMonitorService {
                 let snapshot = await sampleAllMetrics()
                 let cpuHistory = await cpuMonitor.history
 
-                // Phase 2A insights ride the same tick — no new loop/timer. Sampled
-                // only while a popover is open (the heaviest samplers: process walks
-                // every pid, network-insights walks every socket fd). Gathered
-                // concurrently with the metrics sample; applied to AppState separately
-                // so they never enter the persisted SystemSnapshot.
+                // Sample heavy insights only while a popover is open; gather concurrently and apply separately (not persisted).
                 let wantsInsights = await MainActor.run { appState.wantsInsightSampling }
                 let resolvedProcesses: ProcessSnapshot?
                 let resolvedInsights: NetworkInsights?
@@ -140,9 +127,7 @@ actor SystemMonitorService {
                 }
             }
 
-            // Only the current generation may clear the flag. If a newer loop has
-            // already started (e.g. via updateInterval's stop→start), it owns
-            // `isMonitoring` and this stale loop must not flip it back to false.
+            // Only the current generation may clear the flag; stale loops must not flip it back to false.
             if await self.isCurrentGeneration(generation) {
                 await MainActor.run { appState.isMonitoring = false }
             }
@@ -162,14 +147,10 @@ actor SystemMonitorService {
         Logger.monitoring.notice("Monitoring stopped")
     }
 
-    /// Change the sampling cadence at runtime (Settings → Update interval).
-    /// Restarts the loop against the same `AppState` so the new interval takes
-    /// effect immediately. No-op if monitoring was never started. The per-tick
-    /// alert timing recomputes from the new interval inside `start`, so sustained
-    /// ("for Ns") rules stay wall-clock-correct.
+    /// Change sampling cadence at runtime. Restarts the loop so the new interval takes effect immediately.
     func updateInterval(_ interval: Duration) {
         guard let appState = activeAppState else {
-            // Not running yet — just remember it for the next start.
+            // Not running yet: remember for next start.
             activeInterval = interval
             return
         }
