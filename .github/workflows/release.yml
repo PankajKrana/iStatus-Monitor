@@ -85,18 +85,15 @@ jobs:
       - name: Set app version and build number
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          BUILD="${{ github.run_number }}"
 
-          echo "Setting Marketing Version: $VERSION"
-          echo "Setting Build Number: ${{ github.run_number }}"
+          PBXPROJ="$PROJECT/project.pbxproj"
 
-          xcrun agvtool new-marketing-version "$VERSION"
-          xcrun agvtool new-version -all ${{ github.run_number }}
+          perl -0pi -e "s/MARKETING_VERSION = [^;]+;/MARKETING_VERSION = $VERSION;/g" "$PBXPROJ"
+          perl -0pi -e "s/CURRENT_PROJECT_VERSION = [^;]+;/CURRENT_PROJECT_VERSION = $BUILD;/g" "$PBXPROJ"
 
-          echo "Current marketing version:"
-          xcrun agvtool what-marketing-version || true
-
-          echo "Current build:"
-          xcrun agvtool what-version
+          echo "Version: $VERSION"
+          echo "Build: $BUILD"
 
       - name: Test (Debug)
         # Tests run in Debug because the test target uses `@testable import`,
