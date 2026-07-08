@@ -64,6 +64,16 @@ jobs:
           swift --version
           echo "Releasing tag: ${GITHUB_REF_NAME}"
 
+      - name: Cache Swift Package Manager dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
       - name: Resolve Swift packages
         # No-op today (no SPM deps) but surfaces resolution errors as a distinct
         # step if dependencies are added later.
@@ -71,6 +81,22 @@ jobs:
           xcodebuild -resolvePackageDependencies \
             -project "$PROJECT" \
             -scheme "$SCHEME"
+
+      - name: Set app version and build number
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          echo "Setting Marketing Version: $VERSION"
+          echo "Setting Build Number: ${{ github.run_number }}"
+
+          xcrun agvtool new-marketing-version "$VERSION"
+          xcrun agvtool new-version -all ${{ github.run_number }}
+
+          echo "Current marketing version:"
+          xcrun agvtool what-marketing-version || true
+
+          echo "Current build:"
+          xcrun agvtool what-version
 
       - name: Test (Debug)
         # Tests run in Debug because the test target uses `@testable import`,
@@ -209,7 +235,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          name: iStatus Monitor ${{ github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
