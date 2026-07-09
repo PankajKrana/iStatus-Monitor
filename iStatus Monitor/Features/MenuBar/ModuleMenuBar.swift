@@ -75,19 +75,67 @@ struct ModuleMenuBarPopover: View {
     let widgetId: String
 
     @Environment(\.openWindow) private var openWindow
+    @State private var showHistory = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
             Divider()
+            historySection
             content
             Divider()
             footer
         }
         .padding(12)
-        .frame(width: 320)
+        .frame(width: 260)
         .onAppear { appState.beginInsightViewing() }
         .onDisappear { appState.endInsightViewing() }
+    }
+
+    // MARK: Recent history
+
+    /// Expandable recent-history panel: a Charts-based sparkline (only drawn while
+    /// the popover is open, so it costs nothing at idle) plus min/avg/max. Hidden
+    /// until the loop has produced more than one sample, and for widgets with no
+    /// tracked history (e.g. thermal) or no data yet (e.g. battery on a desktop).
+    @ViewBuilder
+    private var historySection: some View {
+        let values = appState.menuBarHistory.values(for: widgetId)
+        if values.count > 1 {
+            DisclosureGroup("History", isExpanded: $showHistory) {
+                if showHistory {
+                    SparklineView(values: values, color: .accentColor)
+                        .frame(height: 48)
+
+                    HStack(spacing: 14) {
+                        historyStat("Min", values.min() ?? 0)
+                        historyStat("Avg", values.reduce(0, +) / Double(values.count))
+                        historyStat("Max", values.max() ?? 0)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+                }
+            }
+            .font(.callout)
+        }
+    }
+
+    private func historyStat(_ label: String, _ value: Double) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+            Text(formatHistory(value))
+                .monospacedDigit()
+        }
+    }
+
+    /// Format history numbers per-widget unit: network is throughput (speed), the
+    /// rest are percentages (usage / charge / used space).
+    private func formatHistory(_ value: Double) -> String {
+        switch widgetId {
+        case "network": MetricFormat.speed(UInt64(max(0, value)))
+        default: MetricFormat.percent(value)
+        }
     }
 
     private var header: some View {
@@ -118,17 +166,22 @@ struct ModuleMenuBarPopover: View {
     private var footer: some View {
         // Standard menu-bar-extra order: primary action first, then a divider,
         // Settings…, and Quit at the very bottom (with the system ⌘Q shortcut).
-        VStack(alignment: .leading, spacing: 8) {
-            Button("Open Dashboard") {
-                openWindow(id: iStatus_MonitorApp.dashboardWindowID)
-                NSApplication.shared.activate(ignoringOtherApps: true)
-            }
+        VStack(alignment: .center, spacing: 8) {
+            
+            HStack {
+                Button("Open Dashboard") {
+                    openWindow(id: iStatus_MonitorApp.dashboardWindowID)
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                }
 
-            Divider()
+                Spacer()
 
-            SettingsLink {
-                Text("Settings…")
+                SettingsLink {
+                    Text("Settings…")
+                }
+
             }
+            
 
             Button("Quit iStatus Monitor") {
                 NSApplication.shared.terminate(nil)

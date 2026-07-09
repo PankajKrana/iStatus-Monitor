@@ -167,7 +167,7 @@ private struct WidgetRow: View {
             Spacer(minLength: 16)
 
             Picker("Display style", selection: $displayStyle) {
-                ForEach(WidgetDisplayStyle.allCases) { style in
+                ForEach(WidgetDisplayStyle.ordered) { style in
                     Text(style.displayName).tag(style)
                 }
             }

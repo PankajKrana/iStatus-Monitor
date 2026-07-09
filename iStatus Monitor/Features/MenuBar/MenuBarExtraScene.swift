@@ -95,8 +95,11 @@ struct MenuBarLabelView: View {
     }
 }
 
-/// A single widget's icon + value in the menu bar label. Internal so module-mode
-/// labels (`ModuleMenuBarLabel`) render identically to compact-mode segments.
+/// A single widget's icon + value (and optional sparkline) in the menu bar label.
+/// Internal so module-mode labels (`ModuleMenuBarLabel`) render identically to
+/// compact-mode segments. The element's appearance is driven entirely by the
+/// `MenuBarSegment` the renderer produced — `text` is empty and `sparkline` is set
+/// exactly when the widget's display style calls for it.
 struct MenuBarSegmentView: View {
     let segment: MenuBarSegment
 
@@ -104,8 +107,18 @@ struct MenuBarSegmentView: View {
         HStack(spacing: 3) {
             if segment.showsIcon {
                 Image(systemName: segment.sfSymbol)
+                    .imageScale(.small)
             }
-            Text(segment.text)
+            if let sparkline = segment.sparkline, !sparkline.isEmpty {
+                MenuBarGraphView(values: sparkline, color: menuBarColor(for: segment.severity))
+            }
+            if !segment.text.isEmpty {
+                Text(segment.text)
+                    .font(.system(size: 12))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
         }
         .foregroundStyle(menuBarColor(for: segment.severity))
         .accessibilityElement(children: .ignore)

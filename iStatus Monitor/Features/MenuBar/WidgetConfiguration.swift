@@ -73,25 +73,46 @@ enum MenuBarPresentationMode: String, Codable, CaseIterable, Identifiable, Senda
 
 // MARK: - Widget Display Style
 
-/// Per-widget rendering format for its own segment of the menu bar string.
+/// Per-widget rendering format for its own segment of the menu bar.
 ///
-/// - `valueOnly`:     `15%`
-/// - `labelAndValue`: `CPU 15%`
-/// - `iconAndValue`:  `🖥 15%`
+/// - `valueOnly`:     `15%`                — Value
+/// - `iconAndValue`:  `🖥 15%`             — Icon
+/// - `labelAndValue`: `CPU 15%`            — Compact (default)
+/// - `graph`:        `📈` (sparkline)      — Graph
+/// - `graphValue`:    `📈 15%`             — Graph + Value
+///
+/// Existing raw values are preserved so persisted `UserDefaults` configs and the
+/// unit tests that reference `.valueOnly` / `.labelAndValue` / `.iconAndValue`
+/// keep decoding. The two graph cases are additive.
 enum WidgetDisplayStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     case valueOnly
     case labelAndValue
     case iconAndValue
+    case graph
+    case graphValue
 
     var id: String { rawValue }
 
     static let `default`: WidgetDisplayStyle = .labelAndValue
 
+    /// Display order for settings pickers: Value, Icon, Compact, Graph, Graph + Value.
+    static let ordered: [WidgetDisplayStyle] = [.valueOnly, .iconAndValue, .labelAndValue, .graph, .graphValue]
+
     var displayName: String {
         switch self {
-        case .valueOnly: "Value Only"
-        case .labelAndValue: "Label + Value"
-        case .iconAndValue: "Icon + Value"
+        case .valueOnly: "Value"
+        case .labelAndValue: "Compact"
+        case .iconAndValue: "Icon"
+        case .graph: "Graph"
+        case .graphValue: "Graph + Value"
+        }
+    }
+
+    /// Whether this style draws a sparkline.
+    var showsGraph: Bool {
+        switch self {
+        case .graph, .graphValue: true
+        default: false
         }
     }
 }
