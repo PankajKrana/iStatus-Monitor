@@ -23,6 +23,11 @@ struct MenuBarSegment: Equatable, Sendable {
     /// layer applies this via `.accessibilityLabel(...)` so assistive tech reads a
     /// curated phrase instead of the raw glyph + abbreviated text.
     let accessibilityLabel: String
+    /// Recent scalar samples for the sparkline, oldest→newest, when the widget's
+    /// display style includes a graph; `nil` otherwise. `Sendable` (≈`[Double]`),
+    /// so the renderer can stay a pure value producer. The view layer draws it
+    /// with a lightweight `Path` — never Swift Charts — to stay near-zero-cost.
+    let sparkline: [Double]?
 }
 
 // MARK: - Menu Bar Renderer
@@ -48,14 +53,21 @@ struct MenuBarRenderer {
             let style = entry.configuration.displayStyle
             let includeLabel = style == .labelAndValue || layout == .detailed
             let includeIcon = style == .iconAndValue || layout == .detailed
+            let includeValue = style == .valueOnly || style == .labelAndValue
+                || style == .iconAndValue || style == .graphValue
+            let includeGraph = style.showsGraph
 
             let value = entry.widget.formattedValue(from: appState)
-            let text = includeLabel ? "\(entry.widget.name) \(value)" : value
+            let text = includeValue ? (includeLabel ? "\(entry.widget.name) \(value)" : value) : ""
 
             // Prefer the widget's curated VoiceOver phrase; fall back to the
             // visible text if a widget hasn't customized one (never empty).
             let spoken = entry.widget.accessibilityLabel(from: appState)
             let accessibilityLabel = spoken.isEmpty ? text : spoken
+
+            // Graph data only when the style asks for it; nil keeps non-graph
+            // segments free of an (empty) array allocation.
+            let sparkline = includeGraph ? appState.menuBarHistory.values(for: entry.widget.id) : nil
 
             return MenuBarSegment(
                 widgetId: entry.widget.id,
@@ -63,7 +75,8 @@ struct MenuBarRenderer {
                 sfSymbol: entry.widget.sfSymbol,
                 showsIcon: includeIcon,
                 severity: entry.widget.severity(from: appState),
-                accessibilityLabel: accessibilityLabel
+                accessibilityLabel: accessibilityLabel,
+                sparkline: sparkline
             )
         }
     }

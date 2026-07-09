@@ -36,6 +36,10 @@ final class AppState {
     var thermalSnapshot: ThermalSnapshot?
     var lastUpdated: Date?
 
+    /// Rolling scalar history feeding the menu-bar sparklines. Mutated only in
+    /// `apply(_:)` on the single sampling tick — no timer of its own.
+    var menuBarHistory = MenuBarHistory()
+
     // MARK: Monitoring lifecycle
 
     var isMonitoring = false
@@ -77,6 +81,15 @@ final class AppState {
         diskSnapshot = snapshot.diskSnapshot
         thermalSnapshot = snapshot.thermalSnapshot
         lastUpdated = snapshot.timestamp
+
+        // Feed the sparkline history on the same tick — the only place live data
+        // is written, so no extra timer or polling is introduced.
+        menuBarHistory.record(cpu.usagePercent, for: "cpu")
+        menuBarHistory.record(ram.totalBytes > 0 ? ram.usedPercent : nil, for: "ram")
+        menuBarHistory.record(networkSnapshot != nil ? Double(network.bytesInPerSecond + network.bytesOutPerSecond) : nil, for: "network")
+        menuBarHistory.record(disk.totalBytes > 0 ? disk.usedPercent : nil, for: "disk")
+        menuBarHistory.record(gpuSnapshot != nil && !gpuSnapshot!.gpus.isEmpty ? gpu.usagePercent : nil, for: "gpu")
+        menuBarHistory.record(batterySnapshot != nil ? battery.levelPercent : nil, for: "battery")
     }
 
     func applyCPU(snapshot: CPUSnapshot, history: [CPUSnapshot]) {
