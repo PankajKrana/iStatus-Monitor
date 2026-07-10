@@ -17,7 +17,7 @@ struct ThermalView: View {
                                 .font(.headline)
                                 .foregroundStyle(.primary)
                             Spacer()
-                            StatusBadge(status: thermalStatusBadge(snapshot.thermalState))
+                            StatusBadge(status: .severity(thermalStatusBadge(snapshot.thermalState)))
                         }
 
                         Text(thermalStateDescription(snapshot.thermalState))
@@ -158,13 +158,12 @@ struct ThermalView: View {
         }
     }
 
-    private func thermalStatusBadge(_ state: ProcessInfo.ThermalState) -> StatusBadge.Status {
+    private func thermalStatusBadge(_ state: ProcessInfo.ThermalState) -> MetricSeverity {
         switch state {
-        case .nominal: return .normal
-        case .fair: return .normal
+        case .nominal, .fair: return .normal
         case .serious: return .warning
         case .critical: return .critical
-        @unknown default: return .custom(thermalStateLabel(state), .gray)
+        @unknown default: return .normal
         }
     }
 

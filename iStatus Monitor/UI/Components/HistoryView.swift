@@ -176,13 +176,17 @@ struct HistoryView: View {
                 }
             }
 
-            Chart(viewModel.records, id: \.timestamp) { record in
+            let historyChart = Chart(viewModel.records, id: \.timestamp) { record in
                 LineMark(x: .value("Time", record.timestamp), y: .value("Value", record.value))
                     .interpolationMethod(.catmullRom)
+                    .foregroundStyle(viewModel.metric.themeColor)
                 AreaMark(x: .value("Time", record.timestamp), y: .value("Value", record.value))
-                    .foregroundStyle(.blue.opacity(0.18))
+                    .foregroundStyle(viewModel.metric.themeColor.opacity(0.18))
             }
             .frame(height: 260)
+
+            historyChart
+                .modifier(PercentageYScaleModifier(enabled: viewModel.metric.isPercentage))
 
             HStack(spacing: 16) {
                 Text(String(format: "Min %.2f", viewModel.stats.min))
@@ -217,5 +221,16 @@ struct HistoryView: View {
         .onChange(of: viewModel.preset) { _, _ in viewModel.reload() }
         .onChange(of: viewModel.customStart) { _, _ in viewModel.reload() }
         .onChange(of: viewModel.customEnd) { _, _ in viewModel.reload() }
+    }
+}
+
+private struct PercentageYScaleModifier: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled {
+            content.chartYScale(domain: 0...100)
+        } else {
+            content
+        }
     }
 }

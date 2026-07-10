@@ -54,7 +54,7 @@ struct CircularGauge: View {
                         style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
-                    .animation(reduceMotion ? .none : AppTheme.springAnimation, value: percentage)
+                    .animation(reduceMotion ? .none : .easeInOut(duration: 0.3), value: percentage)
 
                 VStack(spacing: 2) {
                     if let icon = icon {

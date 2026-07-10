@@ -123,7 +123,7 @@ struct GPUView: View {
                                             .foregroundStyle(.secondary)
                                         
                                         if display.isMain {
-                                            StatusDot(status: .good)
+                                            StatusDot(status: .normal)
                                         }
                                     }
                                 }

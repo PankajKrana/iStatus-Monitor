@@ -1,16 +1,5 @@
 import Foundation
 
-// MARK: - Widget Severity
-
-/// Severity bucket derived from a widget's current value relative to its
-/// `warningThreshold` / `criticalThreshold`. Drives text/icon coloring in the
-/// menu bar without any widget needing to know about SwiftUI `Color`.
-enum WidgetSeverity: String, Sendable, Equatable {
-    case normal
-    case warning
-    case critical
-}
-
 // MARK: - MenuBarWidget
 
 /// A pure, stateless presentation unit for a single metric in the menu bar.
@@ -73,7 +62,7 @@ protocol MenuBarWidget: Identifiable where ID == String {
     /// thermal (driven by `ThermalState`), network (always informational) — can
     /// override it and have the override dispatch correctly through
     /// `any MenuBarWidget`. A default "higher is worse" implementation is provided.
-    @MainActor func severity(from appState: AppState) -> WidgetSeverity
+    @MainActor func severity(from appState: AppState) -> MetricSeverity
 }
 
 // MARK: - Default Behavior
@@ -84,7 +73,7 @@ extension MenuBarWidget {
     /// current value. Widgets whose semantics are inverted (battery) override
     /// this; widgets with no meaningful thresholds inherit `.normal`.
     @MainActor
-    func severity(from appState: AppState) -> WidgetSeverity {
+    func severity(from appState: AppState) -> MetricSeverity {
         guard let value = currentValue(from: appState) else { return .normal }
         if value >= criticalThreshold { return .critical }
         if value >= warningThreshold { return .warning }
