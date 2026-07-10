@@ -18,7 +18,7 @@ struct MenuBarSegment: Equatable, Sendable {
     /// Whether this segment's display style / layout calls for an icon.
     let showsIcon: Bool
     /// Severity for coloring (text in attributed output, icon in the view layer).
-    let severity: WidgetSeverity
+    let severity: MetricSeverity
     /// VoiceOver description for this segment, e.g. `"CPU: 15 percent"`. The view
     /// layer applies this via `.accessibilityLabel(...)` so assistive tech reads a
     /// curated phrase instead of the raw glyph + abbreviated text.
@@ -127,7 +127,7 @@ struct MenuBarRenderer {
 
     /// Maps severity to a color. Lives here, not in widgets, so `MenuBarWidget`
     /// stays free of SwiftUI/`Color`.
-    private func color(for severity: WidgetSeverity) -> Color {
+    private func color(for severity: MetricSeverity) -> Color {
         switch severity {
         case .normal: .primary
         case .warning: .orange
@@ -135,3 +135,4 @@ struct MenuBarRenderer {
         }
     }
 }
+

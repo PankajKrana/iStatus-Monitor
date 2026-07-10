@@ -22,7 +22,6 @@ final class AppState {
 
     var cpu: CPUMetrics = .empty
     var cpuSnapshot: CPUSnapshot?
-    var cpuHistory: [CPUSnapshot] = []
     var ram: MemoryMetrics = .empty
     var memorySnapshot: MemorySnapshot?
     var battery: BatteryMetrics = .empty
@@ -90,11 +89,6 @@ final class AppState {
         menuBarHistory.record(disk.totalBytes > 0 ? disk.usedPercent : nil, for: "disk")
         menuBarHistory.record(gpuSnapshot != nil && !gpuSnapshot!.gpus.isEmpty ? gpu.usagePercent : nil, for: "gpu")
         menuBarHistory.record(batterySnapshot != nil ? battery.levelPercent : nil, for: "battery")
-    }
-
-    func applyCPU(snapshot: CPUSnapshot, history: [CPUSnapshot]) {
-        cpuSnapshot = snapshot
-        cpuHistory = history
     }
 
     /// Apply Phase 2A insight data gathered on the same monitoring tick. Kept

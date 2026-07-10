@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import SwiftUI
-import Combine
 
 struct DashboardView: View {
     @Bindable var appState: AppState
@@ -9,8 +8,6 @@ struct DashboardView: View {
     let onNavigate: (NavigationTab) -> Void
 
     @State private var systemInfo: SystemInfo = .empty
-    @State private var thermalFallbackHistory: [Double] = []
-    private let thermalTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
 
     private let columns: [GridItem] = [
         GridItem(.flexible(), spacing: 16),
@@ -28,7 +25,7 @@ struct DashboardView: View {
                         metric: String(format: "%.1f%%", appState.cpu.usagePercent),
                         icon: "cpu",
                         tint: AppTheme.cpuColor,
-                        sparkline: appState.cpuHistory.map { Double($0.overallLoad) * 100 },
+                        sparkline: appState.menuBarHistory.values(for: "cpu"),
                         status: cpuStatus,
                         miniStats: [
                             ("Cores", String(appState.cpu.coreCount) + " cores"),
@@ -43,7 +40,7 @@ struct DashboardView: View {
                         metric: String(format: "%.1f%%", appState.gpu.usagePercent),
                         icon: "display",
                         tint: AppTheme.gpuColor,
-                        sparkline: [appState.gpuSnapshot?.gpus.first?.utilizationPercent].compactMap { $0 },
+                        sparkline: appState.menuBarHistory.values(for: "gpu"),
                         status: gpuStatus,
                         miniStats: [
                             ("Device", gpuDeviceLabel),
@@ -57,8 +54,8 @@ struct DashboardView: View {
                         title: "Memory",
                         metric: String(format: "%.1f%%", appState.ram.usedPercent),
                         icon: "memorychip",
-                        tint: AppTheme.memoryUsedColor,
-                        sparkline: [appState.memorySnapshot?.usedRatio].compactMap { $0 }.map { Double($0) * 100 },
+                        tint: AppTheme.ramColor,
+                        sparkline: appState.menuBarHistory.values(for: "ram"),
                         status: memoryStatus,
                         miniStats: [
                             ("Used", appState.memorySnapshot?.usedString ?? "--"),
@@ -73,9 +70,7 @@ struct DashboardView: View {
                         metric: appState.diskSnapshot?.primaryVolume.map { String(format: "%.0f%%", $0.usedPercent) } ?? "--%",
                         icon: "internaldrive.fill",
                         tint: AppTheme.diskColor,
-                        sparkline: appState.diskSnapshot?.history60s.map {
-                            Double($0.readBytesPerSecond + $0.writeBytesPerSecond) / 1024
-                        } ?? [],
+                        sparkline: appState.menuBarHistory.values(for: "disk"),
                         status: diskStatus,
                         miniStats: [
                             ("I/O", "↓\(formatBytes(appState.disk.readBytesPerSecond)) ↑\(formatBytes(appState.disk.writeBytesPerSecond))"),
@@ -89,10 +84,8 @@ struct DashboardView: View {
                         title: "Network",
                         metric: "↓ \(formatBytes(appState.network.bytesInPerSecond))/s",
                         icon: "network",
-                        tint: AppTheme.networkDownloadColor,
-                        sparkline: appState.networkSnapshot?.history60s.map {
-                            Double($0.downloadBytesPerSecond) / 1024
-                        } ?? [],
+                        tint: AppTheme.networkColor,
+                        sparkline: appState.menuBarHistory.values(for: "network"),
                         status: .normal,
                         miniStats: [
                             ("Upload", "↑ \(formatBytes(appState.network.bytesOutPerSecond))/s"),
@@ -111,7 +104,7 @@ struct DashboardView: View {
                         metric: appState.batterySnapshot.map { String(format: "%.0f%%", $0.chargePercent) } ?? "N/A",
                         icon: "battery.100",
                         tint: AppTheme.batteryColor,
-                        sparkline: appState.batterySnapshot?.chargeHistory24h.map(\.chargePercent) ?? [],
+                        sparkline: appState.menuBarHistory.values(for: "battery"),
                         status: batteryStatus,
                         miniStats: [
                             ("Health", appState.batterySnapshot.map { String(format: "%.0f%%", $0.healthPercent) } ?? "--"),
@@ -128,7 +121,7 @@ struct DashboardView: View {
                         } ?? thermalStateText,
                         icon: "thermometer.sun.fill",
                         tint: AppTheme.temperatureColor,
-                        sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? thermalFallbackHistory,
+                        sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? [],
                         status: thermalStatus,
                         miniStats: [
                             (
@@ -175,20 +168,6 @@ struct DashboardView: View {
             }
             .padding(16)
         }
-        .onReceive(thermalTimer) { _ in
-            // Only maintain fallback history if no numeric snapshot is available
-            guard appState.thermalSnapshot == nil else { return }
-            let value: Double
-            switch ProcessInfo.processInfo.thermalState {
-            case .nominal: value = 0
-            case .fair:    value = 1
-            case .serious: value = 2
-            case .critical:value = 3
-            @unknown default: value = 0
-            }
-            thermalFallbackHistory.append(value)
-            if thermalFallbackHistory.count > 60 { thermalFallbackHistory.removeFirst(thermalFallbackHistory.count - 60) }
-        }
         .onAppear {
             systemInfo = .current()
         }
@@ -196,38 +175,23 @@ struct DashboardView: View {
 
     // Composite system health derived from the real per-metric statuses — worst
     // severity wins. Replaces the previous hardcoded "Good" / fake sparkline.
-    private var overallHealthStatus: StatusBadge.Status {
-        let worst = [cpuStatus, gpuStatus, memoryStatus, diskStatus, batteryStatus, thermalStatus]
-            .map(severityRank(of:))
-            .max() ?? 0
-        switch worst {
-        case 2: return .critical
-        case 1: return .warning
-        default: return .normal
-        }
+    private var overallHealthStatus: MetricSeverity {
+        [cpuStatus, gpuStatus, memoryStatus, diskStatus, batteryStatus, thermalStatus].max() ?? .normal
     }
 
     private var overallHealthLabel: String {
-        switch severityRank(of: overallHealthStatus) {
-        case 2: return "Needs Attention"
-        case 1: return "Fair"
+        switch overallHealthStatus {
+        case .critical: return "Needs Attention"
+        case .warning: return "Fair"
         default: return "Good"
         }
     }
 
     private var overallHealthTint: Color {
-        switch severityRank(of: overallHealthStatus) {
-        case 2: return .red
-        case 1: return .orange
+        switch overallHealthStatus {
+        case .critical: return .red
+        case .warning: return .orange
         default: return .green
-        }
-    }
-
-    private func severityRank(of status: StatusBadge.Status) -> Int {
-        switch status {
-        case .critical: return 2
-        case .warning: return 1
-        default: return 0
         }
     }
 
@@ -238,7 +202,7 @@ struct DashboardView: View {
         icon: String,
         tint: Color,
         sparkline: [Double],
-        status: StatusBadge.Status,
+        status: MetricSeverity,
         miniStats: [(String, String)],
         action: @escaping () -> Void
     ) -> some View {
@@ -250,16 +214,7 @@ struct DashboardView: View {
                             .font(.headline)
                             .foregroundStyle(tint)
                         Spacer()
-                        let dotStatus: StatusDot.Status = {
-                            switch status {
-                            case .normal: return .good
-                            case .warning: return .warning
-                            case .critical: return .critical
-                            @unknown default:
-                                    return .warning
-                            }
-                        }()
-                        StatusDot(status: dotStatus)
+                        StatusDot(status: status)
                     }
 
                     Text(metric)
@@ -317,19 +272,19 @@ struct DashboardView: View {
         }
     }
 
-    private var cpuStatus: StatusBadge.Status {
+    private var cpuStatus: MetricSeverity {
         if appState.cpu.usagePercent >= 90 { return .critical }
         if appState.cpu.usagePercent >= 75 { return .warning }
         return .normal
     }
 
-    private var memoryStatus: StatusBadge.Status {
+    private var memoryStatus: MetricSeverity {
         if appState.ram.usedPercent >= 90 { return .critical }
         if appState.ram.usedPercent >= 80 { return .warning }
         return .normal
     }
 
-    private var gpuStatus: StatusBadge.Status {
+    private var gpuStatus: MetricSeverity {
         if appState.gpu.usagePercent >= 95 { return .critical }
         if appState.gpu.usagePercent >= 80 { return .warning }
         return .normal
@@ -348,7 +303,7 @@ struct DashboardView: View {
         return formatMB(total)
     }
 
-    private var diskStatus: StatusBadge.Status {
+    private var diskStatus: MetricSeverity {
         guard let used = appState.diskSnapshot?.primaryVolume?.usedPercent else { return .normal }
         if used >= 90 { return .critical }
         if used >= 75 { return .warning }
@@ -370,7 +325,7 @@ struct DashboardView: View {
     }
 
 
-    private var batteryStatus: StatusBadge.Status {
+    private var batteryStatus: MetricSeverity {
         guard let snapshot = appState.batterySnapshot else {
             // If we can't read the battery, assume normal to avoid noisy warnings on desktops
             return .normal
@@ -383,7 +338,7 @@ struct DashboardView: View {
     }
 
 
-    private var thermalStatus: StatusBadge.Status {
+    private var thermalStatus: MetricSeverity {
         if let thermal = appState.thermalSnapshot {
             let hot = hottestTemp(in: thermal)
             if hot >= 90 { return .critical }

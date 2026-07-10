@@ -88,7 +88,6 @@ actor SystemMonitorService {
                 }
 
                 let snapshot = await sampleAllMetrics()
-                let cpuHistory = await cpuMonitor.history
 
                 // Sample heavy insights only while a popover is open; gather concurrently and apply separately (not persisted).
                 let wantsInsights = await MainActor.run { appState.wantsInsightSampling }
@@ -112,7 +111,7 @@ actor SystemMonitorService {
                         cpuFrequencyGHz: cpuFrequencyGHz
                     )
                     if let cpuSnapshot = snapshot.cpuSnapshot {
-                        appState.applyCPU(snapshot: cpuSnapshot, history: cpuHistory)
+                        appState.cpuSnapshot = cpuSnapshot
                     }
                 }
 
