@@ -21,6 +21,18 @@ Live CPU, RAM, GPU, Network, SSD, Battery, and Thermal monitoring — directly f
 
 ---
 
+
+## 🎥 Demo
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/PankajKrana/Swift-Project/main/Assets/iStatus_Monitor.gif" alt="iStatus Monitor Demo" width="100%">
+</p>
+
+> **Watch:** Real-time menu bar monitoring, interactive charts, customizable dashboard, alerts, and theme switching.
+
+---
+
+
 ## ✨ Overview
 
 **iStatus Monitor** is a lightweight, native macOS utility that keeps a real-time pulse on your Mac's hardware without ever getting in your way. It lives in the menu bar, runs continuously in the background, and surfaces a full dashboard only when you want it.
