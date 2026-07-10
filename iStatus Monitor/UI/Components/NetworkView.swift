@@ -102,7 +102,7 @@ struct NetworkView: View {
                     .foregroundStyle(.green)
                     .accessibilityLabel("VPN active")
             }
-            StatusBadge(status: snapshot.connectivitySatisfied ? .normal : .critical)
+            StatusBadge(status: .severity(snapshot.connectivitySatisfied ? .normal : .critical))
         }
     }
 

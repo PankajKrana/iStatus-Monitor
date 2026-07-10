@@ -42,3 +42,17 @@ enum AppTheme {
     static let animationDuration: Double = 0.35
     static let springAnimation = Animation.spring(response: 0.4, dampingFraction: 0.75)
 }
+
+extension MetricType {
+    /// The canonical `AppTheme` color for charts and sparklines of this metric,
+    /// so History/Detail views match the dashboard cards.
+    var themeColor: Color {
+        switch self {
+        case .cpu: AppTheme.cpuColor
+        case .memory: AppTheme.ramColor
+        case .temperature: AppTheme.temperatureColor
+        case .battery: AppTheme.batteryColor
+        case .network: AppTheme.networkColor
+        }
+    }
+}

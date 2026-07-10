@@ -109,8 +109,9 @@ struct SystemMonitorServiceTests {
 
         await service.start(appState: appState, interval: .milliseconds(50))
 
-        // History must actually grow — the previous `>= 0` assertion was vacuous.
-        #expect(await eventually { appState.cpuHistory.count >= 2 })
+        // History must actually grow — the sparkline buffer is now the single
+        // source of rolling CPU history (fed on every tick by `AppState.apply`).
+        #expect(await eventually { appState.menuBarHistory.values(for: "cpu").count >= 2 })
 
         await service.stop()
     }

@@ -222,11 +222,11 @@ private struct OpenDashboardBridge: ViewModifier {
 
 // MARK: - Severity Color
 
-/// Maps a `WidgetSeverity` to a SwiftUI `Color` for the view layer. (The
+/// Maps a `MetricSeverity` to a SwiftUI `Color` for the view layer. (The
 /// renderer has its own copy for `AttributedString`; keeping `Color` out of
-/// `WidgetSeverity` lets the protocol layer stay free of SwiftUI.) Internal so
+/// `MetricSeverity` lets the protocol layer stay free of SwiftUI.) Internal so
 /// module-mode views share one mapping.
-func menuBarColor(for severity: WidgetSeverity) -> Color {
+func menuBarColor(for severity: MetricSeverity) -> Color {
     switch severity {
     case .normal: .primary
     case .warning: .orange

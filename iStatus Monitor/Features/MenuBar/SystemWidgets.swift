@@ -107,7 +107,7 @@ nonisolated struct NetworkWidget: MenuBarWidget {
         return "Network: download \(down), upload \(up)"
     }
 
-    @MainActor func severity(from appState: AppState) -> WidgetSeverity {
+    @MainActor func severity(from appState: AppState) -> MetricSeverity {
         .normal
     }
 }
@@ -136,7 +136,7 @@ nonisolated struct BatteryWidget: MenuBarWidget {
         return "Battery: \(Int(value.rounded())) percent"
     }
 
-    @MainActor func severity(from appState: AppState) -> WidgetSeverity {
+    @MainActor func severity(from appState: AppState) -> MetricSeverity {
         guard let value = currentValue(from: appState) else { return .normal }
         if value < criticalThreshold { return .critical }
         if value < warningThreshold { return .warning }
@@ -200,7 +200,7 @@ nonisolated struct ThermalWidget: MenuBarWidget {
         return "Temperature: \(Int(celsius.rounded())) degrees Celsius"
     }
 
-    @MainActor func severity(from appState: AppState) -> WidgetSeverity {
+    @MainActor func severity(from appState: AppState) -> MetricSeverity {
         guard let thermalState = appState.thermalSnapshot?.thermalState else { return .normal }
         switch thermalState {
         case .nominal: return .normal

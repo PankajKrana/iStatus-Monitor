@@ -35,6 +35,16 @@ enum MetricType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Whether the metric is a 0–100 percentage, so the history chart can pin a
+    /// fixed Y domain instead of auto-scaling small fluctuations into a full sweep.
+    /// Temperature (°C) and network throughput are intentionally excluded.
+    var isPercentage: Bool {
+        switch self {
+        case .cpu, .memory, .battery: true
+        case .temperature, .network: false
+        }
+    }
+
     /// SF Symbol used across the alerts UI for this metric.
     var systemImage: String {
         switch self {

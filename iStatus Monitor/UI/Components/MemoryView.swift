@@ -111,7 +111,7 @@ struct MemoryView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
-                        StatusBadge(status: pressureStatus)
+                        StatusBadge(status: .severity(pressureStatus))
                     }
 
                     Divider()
@@ -347,7 +347,7 @@ struct MemoryView: View {
             .frame(width: max(0, width * ratio))
     }
 
-    private var pressureStatus: StatusBadge.Status {
+    private var pressureStatus: MetricSeverity {
         switch snapshot.pressure {
         case .normal: return .normal
         case .warning: return .warning
