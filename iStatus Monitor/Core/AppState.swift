@@ -68,6 +68,7 @@ final class AppState {
 
     func apply(_ snapshot: SystemSnapshot) {
         cpu = snapshot.cpu
+        cpuSnapshot = snapshot.cpuSnapshot
         ram = snapshot.ram
         memorySnapshot = snapshot.memorySnapshot
         battery = snapshot.battery
