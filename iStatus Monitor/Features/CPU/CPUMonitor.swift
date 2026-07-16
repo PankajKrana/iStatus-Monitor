@@ -43,22 +43,6 @@ actor CPUMonitor {
         sampleSnapshot()
     }
 
-    func read() async -> CPUMetrics {
-        guard let snapshot = sampleSnapshot() else {
-            return CPUMetrics(
-                usagePercent: 0,
-                coreCount: ProcessInfo.processInfo.processorCount,
-                temperatureCelsius: nil
-            )
-        }
-
-        return CPUMetrics(
-            usagePercent: Double(snapshot.overallLoad * 100),
-            coreCount: snapshot.perCoreUsage.count,
-            temperatureCelsius: nil
-        )
-    }
-
     private func sampleSnapshot() -> CPUSnapshot? {
         guard let currentTicks = fetchTickSamples() else { return nil }
 
