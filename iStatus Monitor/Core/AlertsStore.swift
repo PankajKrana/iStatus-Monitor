@@ -27,6 +27,8 @@ final class AlertsStore {
         authorizationStatus == .denied
     }
 
+    @MainActor private var changesTask: Task<Void, Error>?
+
     init(engine: AlertEngine) {
         self.engine = engine
         observeEngineChanges()
@@ -35,13 +37,20 @@ final class AlertsStore {
     /// Subscribe to engine change events so history/badge update live when an
     /// alert fires in the background — not just on `onAppear`/save (B7).
     private func observeEngineChanges() {
-        Task { [weak self] in
+        changesTask = Task { [weak self] in
             guard let self else { return }
             let stream = await engine.changes()
             for await _ in stream {
                 self.refresh()
             }
         }
+    }
+
+    @MainActor deinit {
+        // Task will naturally complete when self is deallocated
+        #if swift(>=6.0)
+        changesTask?.cancel()
+        #endif
     }
 
     func refresh() {

@@ -14,7 +14,7 @@ enum AppTheme {
     static let diskColor: Color = .green
     static let networkColor: Color = .cyan
     static let batteryColor: Color = .yellow
-    static let temperatureColor: Color = .red      
+    static let thermalColor: Color = .red
 
     // MARK: Network Colors
     static let networkDownloadColor: Color = Color(red: 0.16, green: 0.61, blue: 0.98)
@@ -50,7 +50,7 @@ extension MetricType {
         switch self {
         case .cpu: AppTheme.cpuColor
         case .memory: AppTheme.ramColor
-        case .temperature: AppTheme.temperatureColor
+        case .temperature: AppTheme.thermalColor
         case .battery: AppTheme.batteryColor
         case .network: AppTheme.networkColor
         }
