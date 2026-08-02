@@ -3,13 +3,11 @@ import SwiftUI
 
 struct MemoryView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var trend: [MemorySnapshot] = []
 
     let snapshot: MemorySnapshot
 
-    // In-memory trend buffer for the last 5 minutes; local/volatile.
-    @State private var trend: [MemorySnapshot] = []
-
-    private static let trendWindow: TimeInterval = 300
+    private static let trendWindow: TimeInterval = 5 * 60
 
     private var pressureColor: Color {
         switch snapshot.pressure {
@@ -29,9 +27,13 @@ struct MemoryView: View {
                 memoryDetailsSection
             }
         }
+        .onAppear {
+            appendTrend(snapshot)
+        }
+        .onChange(of: snapshot) { _, newSnapshot in
+            appendTrend(newSnapshot)
+        }
         .animation(reduceMotion ? .none : AppTheme.springAnimation, value: snapshot)
-        .onAppear { appendTrend(snapshot) }
-        .onChange(of: snapshot.timestamp) { _, _ in appendTrend(snapshot) }
     }
 
     private var memoryUsageCard: some View {
@@ -171,51 +173,51 @@ struct MemoryView: View {
                 sectionHeader("Memory Trend (Last 5 Minutes)")
 
                 GlassCard(material: .thin) {
-                  VStack(spacing: 12) {
-                    HStack(spacing: 16) {
-                        trendStat("Current", trendStats.current)
-                        Divider().frame(height: 24)
-                        trendStat("Average", trendStats.average)
-                        Divider().frame(height: 24)
-                        trendStat("Peak", trendStats.peak)
-                        Spacer()
-                    }
+                    VStack(spacing: 12) {
+                        HStack(spacing: 16) {
+                            trendStat("Current", trendStats.current)
+                            Divider().frame(height: 24)
+                            trendStat("Average", trendStats.average)
+                            Divider().frame(height: 24)
+                            trendStat("Peak", trendStats.peak)
+                            Spacer()
+                        }
 
-                    Chart(trend, id: \.timestamp) { point in
-                        AreaMark(
-                            x: .value("Time", point.timestamp),
-                            y: .value("Usage", Double(point.usedRatio) * 100)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [AppTheme.ramColor.opacity(0.35), AppTheme.ramColor.opacity(0.02)],
-                                startPoint: .top,
-                                endPoint: .bottom
+                        Chart(trend, id: \.timestamp) { point in
+                            AreaMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Usage", Double(point.usedRatio) * 100)
                             )
-                        )
-                        .interpolationMethod(.monotone)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [AppTheme.ramColor.opacity(0.35), AppTheme.ramColor.opacity(0.02)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .interpolationMethod(.monotone)
 
-                        LineMark(
-                            x: .value("Time", point.timestamp),
-                            y: .value("Usage", Double(point.usedRatio) * 100)
-                        )
-                        .foregroundStyle(AppTheme.ramColor)
-                        .interpolationMethod(.monotone)
-                    }
-                    .chartYScale(domain: 0...100)
-                    .chartYAxis {
-                        AxisMarks(values: [0, 50, 100]) { value in
-                            AxisGridLine()
-                            AxisValueLabel {
-                                if let v = value.as(Int.self) {
-                                    Text("\(v)%")
+                            LineMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Usage", Double(point.usedRatio) * 100)
+                            )
+                            .foregroundStyle(AppTheme.ramColor)
+                            .interpolationMethod(.monotone)
+                        }
+                        .chartYScale(domain: 0...100)
+                        .chartYAxis {
+                            AxisMarks(values: [0, 50, 100]) { value in
+                                AxisGridLine()
+                                AxisValueLabel {
+                                    if let v = value.as(Int.self) {
+                                        Text("\(v)%")
+                                    }
                                 }
                             }
                         }
+                        .chartXAxis(.hidden)
+                        .frame(height: 90)
                     }
-                    .chartXAxis(.hidden)
-                    .frame(height: 90)
-                  }
                 }
             }
         }

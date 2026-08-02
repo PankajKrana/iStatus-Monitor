@@ -58,7 +58,7 @@ final class AppState {
     // open. Reference-counted because module mode can present several popovers at
     // once; sampling runs while the count is > 0.
     //
-    // ponytail: fails safe — if a popover's onDisappear is missed (a known
+    // fails safe — if a popover's onDisappear is missed (a known
     // MenuBarExtra quirk) the count just stays high and we sample as before; it
     // can never go negative or hide live data.
     private(set) var insightViewerCount = 0

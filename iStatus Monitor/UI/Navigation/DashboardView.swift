@@ -120,7 +120,7 @@ struct DashboardView: View {
                             "\(hottestTemp(in: $0).formatted(.number.precision(.fractionLength(0))))°C"
                         } ?? thermalStateText,
                         icon: "thermometer.sun.fill",
-                        tint: AppTheme.temperatureColor,
+                        tint: AppTheme.thermalColor,
                         sparkline: appState.thermalSnapshot.map { $0.sensors.map(\.celsius) } ?? [],
                         status: thermalStatus,
                         miniStats: [
