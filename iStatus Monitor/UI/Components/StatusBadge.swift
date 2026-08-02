@@ -53,7 +53,8 @@ struct StatusBadge: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
-            .accessibilityLabel(status.text)
+            .accessibilityLabel(Text(status.text))
+            .accessibilityValue(Text(status.text))
     }
 }
 
@@ -67,6 +68,7 @@ struct StatusDot: View {
             .font(.system(size: size, weight: .semibold))
             .foregroundStyle(status.indicatorColor)
             .accessibilityLabel(status.label)
+            .accessibilityValue(status.label)
     }
 }
 

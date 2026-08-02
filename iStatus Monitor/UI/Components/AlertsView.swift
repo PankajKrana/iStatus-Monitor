@@ -17,7 +17,7 @@ func metricColor(_ metric: MetricType) -> Color {
     switch metric {
     case .cpu: AppTheme.cpuColor
     case .memory: AppTheme.ramColor
-    case .temperature: AppTheme.temperatureColor
+    case .temperature: AppTheme.thermalColor
     case .battery: AppTheme.batteryColor
     case .network: AppTheme.networkColor
     }
