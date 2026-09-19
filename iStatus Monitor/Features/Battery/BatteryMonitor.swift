@@ -14,27 +14,6 @@ actor BatteryMonitor {
         self.defaults = defaults
     }
 
-    func snapshots(every interval: Duration = .seconds(15)) -> AsyncStream<BatterySnapshot?> {
-        AsyncStream { continuation in
-            let task = Task {
-                while !Task.isCancelled {
-                    let snapshot = latestSnapshot()
-                    continuation.yield(snapshot)
-                    do {
-                        try await Task.sleep(for: interval)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
-        }
-    }
-
     func latestSnapshot() -> BatterySnapshot? {
         // Looks up the AppleSmartBattery service in the I/O Registry for low-level battery telemetry.
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))

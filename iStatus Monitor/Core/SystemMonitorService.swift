@@ -127,7 +127,7 @@ actor SystemMonitorService {
             }
 
             // Only the current generation may clear the flag; stale loops must not flip it back to false.
-            if await self.isCurrentGeneration(generation) {
+            if self.isCurrentGeneration(generation) {
                 await MainActor.run { appState.isMonitoring = false }
             }
         }
@@ -253,7 +253,7 @@ actor SystemMonitorService {
             disk = .empty
         }
 
-        return await SystemSnapshot(
+        return SystemSnapshot(
             timestamp: Date(),
             cpu: cpu,
             cpuSnapshot: resolvedCPUSnapshot,

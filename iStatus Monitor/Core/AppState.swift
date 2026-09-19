@@ -87,8 +87,9 @@ final class AppState {
         menuBarHistory.record(cpu.usagePercent, for: "cpu")
         menuBarHistory.record(ram.totalBytes > 0 ? ram.usedPercent : nil, for: "ram")
         menuBarHistory.record(networkSnapshot != nil ? Double(network.bytesInPerSecond + network.bytesOutPerSecond) : nil, for: "network")
-        menuBarHistory.record(disk.totalBytes > 0 ? disk.usedPercent : nil, for: "disk")
-        menuBarHistory.record(gpuSnapshot != nil && !gpuSnapshot!.gpus.isEmpty ? gpu.usagePercent : nil, for: "gpu")
+        // Keyed by widget id, not metric name: the disk widget's id is "ssd".
+        menuBarHistory.record(disk.totalBytes > 0 ? disk.usedPercent : nil, for: "ssd")
+        menuBarHistory.record(gpuSnapshot.map { !$0.gpus.isEmpty } == true ? gpu.usagePercent : nil, for: "gpu")
         menuBarHistory.record(batterySnapshot != nil ? battery.levelPercent : nil, for: "battery")
     }
 
@@ -101,7 +102,7 @@ final class AppState {
         self.cpuFrequencyGHz = cpuFrequencyGHz
     }
 
-    var systemUptime: TimeInterval? {
+    var systemUptime: TimeInterval {
         ProcessInfo.processInfo.systemUptime
     }
 }

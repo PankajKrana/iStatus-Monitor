@@ -92,14 +92,14 @@ actor ProcessMonitor {
     private func name(for pid: pid_t) -> String {
         var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         if proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count)) > 0 {
-            let path = String(cString: pathBuffer)
+            let path = String(nulTerminated: pathBuffer)
             let last = (path as NSString).lastPathComponent
             if !last.isEmpty { return last }
         }
         // Fallback: the short accounting name (truncated to ~16 chars by the kernel).
         var nameBuffer = [CChar](repeating: 0, count: 256)
         if proc_name(pid, &nameBuffer, UInt32(nameBuffer.count)) > 0 {
-            return String(cString: nameBuffer)
+            return String(nulTerminated: nameBuffer)
         }
         return "pid \(pid)"
     }

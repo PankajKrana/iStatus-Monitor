@@ -41,7 +41,8 @@ struct SparklineView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { drag in
-                                let x = drag.location.x - geo[proxy.plotAreaFrame].origin.x
+                                guard let plotFrame = proxy.plotFrame else { return }
+                                let x = drag.location.x - geo[plotFrame].origin.x
                                 guard let date: Date = proxy.value(atX: x) else { return }
                                 let nearest = points.min { abs($0.timestamp.timeIntervalSince(date)) < abs($1.timestamp.timeIntervalSince(date)) }
                                 selectedValue = nearest?.value
