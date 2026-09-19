@@ -49,8 +49,11 @@ struct MenuBarHistory: Sendable {
     /// 60 s of history at the default 1 Hz sampling cadence — matches Stats' window.
     static let capacity = 60
 
-    /// Widget ids that support a sparkline, in registry order.
-    static let widgetIDs = ["cpu", "ram", "network", "disk", "gpu", "battery"]
+    /// Widget ids that support a sparkline, in registry order. These must match
+    /// `MenuBarWidget.id` exactly — `MenuBarRenderer` and `ModuleMenuBar` both
+    /// look history up by `widget.id`, so a key that drifts from a widget's id
+    /// silently yields an empty graph (the disk widget's id is `"ssd"`).
+    static let widgetIDs = ["cpu", "ram", "network", "ssd", "gpu", "battery"]
 
     private var buffers: [String: RingBuffer<Double>]
 

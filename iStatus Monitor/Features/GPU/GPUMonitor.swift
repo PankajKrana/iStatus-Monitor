@@ -4,28 +4,6 @@ import IOKit
 import Metal
 
 actor GPUMonitor {
-    func snapshots(every interval: Duration = .seconds(2)) -> AsyncStream<GPUSnapshot> {
-        AsyncStream { continuation in
-            let task = Task {
-                while !Task.isCancelled {
-                    if let snapshot = latestSnapshot() {
-                        continuation.yield(snapshot)
-                    }
-                    do {
-                        try await Task.sleep(for: interval)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
-        }
-    }
-
     func latestSnapshot() -> GPUSnapshot? {
         let gpus = iokitGPUStats().mergingWithMetal(metalGPUStats())
         let displays = displayInfos()

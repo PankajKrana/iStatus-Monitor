@@ -70,7 +70,7 @@ struct DashboardView: View {
                         metric: appState.diskSnapshot?.primaryVolume.map { String(format: "%.0f%%", $0.usedPercent) } ?? "--%",
                         icon: "internaldrive.fill",
                         tint: AppTheme.diskColor,
-                        sparkline: appState.menuBarHistory.values(for: "disk"),
+                        sparkline: appState.menuBarHistory.values(for: "ssd"),
                         status: diskStatus,
                         miniStats: [
                             ("I/O", "↓\(formatBytes(appState.disk.readBytesPerSecond)) ↑\(formatBytes(appState.disk.writeBytesPerSecond))"),
@@ -388,7 +388,7 @@ struct DashboardView: View {
     }
 
     private func formatUptime() -> String {
-        guard let uptime = appState.systemUptime else { return "--" }
+        let uptime = appState.systemUptime
         let days = Int(uptime) / 86_400
         let hours = (Int(uptime) % 86_400) / 3_600
         let minutes = (Int(uptime) % 3_600) / 60

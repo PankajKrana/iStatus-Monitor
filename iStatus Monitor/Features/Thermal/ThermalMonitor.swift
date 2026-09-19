@@ -10,29 +10,6 @@ actor ThermalMonitor {
     /// Guards against launching more than one observer of the shared discovery.
     private var isDiscoveringKeys = false
 
-    func snapshots(every interval: Duration = .seconds(3)) -> AsyncStream<ThermalSnapshot> {
-        AsyncStream { continuation in
-            let task = Task {
-                while !Task.isCancelled {
-                    if let snapshot = latestSnapshot() {
-                        continuation.yield(snapshot)
-                    }
-
-                    do {
-                        try await Task.sleep(for: interval)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
-        }
-    }
-
     func latestSnapshot() -> ThermalSnapshot? {
         guard smc.openIfNeeded() else { return nil }
 

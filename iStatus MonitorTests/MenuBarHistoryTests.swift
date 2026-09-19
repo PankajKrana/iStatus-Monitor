@@ -57,4 +57,18 @@ struct MenuBarHistoryTests {
         // "cpu" (70 records) also rolls over at capacity — both stay at 60.
         #expect(history.values(for: "cpu").count == MenuBarHistory.capacity)
     }
+
+    /// `MenuBarRenderer` and `ModuleMenuBar` both look history up by
+    /// `MenuBarWidget.id`. A history key that is not a registered widget id
+    /// yields an empty graph with no error anywhere, so the two lists must agree.
+    @MainActor
+    @Test("every history key matches a registered widget id")
+    func historyKeysMatchRegisteredWidgetIDs() {
+        let registry = WidgetRegistry(widgets: WidgetRegistry.builtInWidgets())
+        let registeredIDs = Set(registry.availableIDs)
+
+        let unmatched = MenuBarHistory.widgetIDs.filter { !registeredIDs.contains($0) }
+
+        #expect(unmatched.isEmpty, "history keys with no matching widget id: \(unmatched)")
+    }
 }

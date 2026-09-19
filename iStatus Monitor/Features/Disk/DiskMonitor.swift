@@ -18,29 +18,6 @@ actor DiskMonitor {
     private var previousWrite: UInt64?
     private var history60s: [DiskActivityPoint] = []
 
-    func snapshots(every interval: Duration = .seconds(1)) -> AsyncStream<DiskSnapshot> {
-        AsyncStream { continuation in
-            let task = Task {
-                while !Task.isCancelled {
-                    if let snapshot = latestSnapshot() {
-                        continuation.yield(snapshot)
-                    }
-
-                    do {
-                        try await Task.sleep(for: interval)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
-        }
-    }
-
     func latestSnapshot() -> DiskSnapshot? {
         let now = Date()
         let volumes = collectVolumes()
