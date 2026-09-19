@@ -10,34 +10,6 @@ actor CPUMonitor {
     }
 
     private var previousTicks: [TickSample]?
-    private var historyStorage: [CPUSnapshot] = []
-
-    var history: [CPUSnapshot] {
-        historyStorage
-    }
-
-    func snapshots(every interval: Duration = .seconds(1)) -> AsyncStream<CPUSnapshot> {
-        AsyncStream { continuation in
-            let task = Task {
-                while !Task.isCancelled {
-                    if let snapshot = sampleSnapshot() {
-                        continuation.yield(snapshot)
-                    }
-
-                    do {
-                        try await Task.sleep(for: interval)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
-        }
-    }
 
     func latestSnapshot() -> CPUSnapshot? {
         sampleSnapshot()
@@ -51,9 +23,7 @@ actor CPUMonitor {
 
         guard let previousTicks else {
             self.previousTicks = currentTicks
-            let baseline = Self.makeBaselineSnapshot(timestamp: now, coreCount: currentTicks.count, loadAverage: loadAverage)
-            appendToHistory(baseline)
-            return baseline
+            return Self.makeBaselineSnapshot(timestamp: now, coreCount: currentTicks.count, loadAverage: loadAverage)
         }
 
         let snapshot = Self.computeSnapshot(
@@ -64,15 +34,7 @@ actor CPUMonitor {
         )
 
         self.previousTicks = currentTicks
-        appendToHistory(snapshot)
         return snapshot
-    }
-
-    private func appendToHistory(_ snapshot: CPUSnapshot) {
-        historyStorage.append(snapshot)
-        if historyStorage.count > 60 {
-            historyStorage.removeFirst(historyStorage.count - 60)
-        }
     }
 
     private func fetchTickSamples() -> [TickSample]? {

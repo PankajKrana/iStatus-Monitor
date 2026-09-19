@@ -184,14 +184,16 @@ private struct WindowFrameBridge: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        DispatchQueue.main.async {
+        // `view.window` is still nil while the view is being made, so defer the
+        // attach by one main-actor hop.
+        Task { @MainActor in
             context.coordinator.attach(to: view.window, frameStorage: $frameStorage)
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             context.coordinator.attach(to: nsView.window, frameStorage: $frameStorage)
         }
     }
@@ -200,6 +202,9 @@ private struct WindowFrameBridge: NSViewRepresentable {
         Coordinator()
     }
 
+    /// Main-actor isolated: every member touches `NSWindow`, and the frame
+    /// observers are delivered on `.main` by construction.
+    @MainActor
     final class Coordinator {
         private weak var window: NSWindow?
         private var observers: [NSObjectProtocol] = []
@@ -215,17 +220,21 @@ private struct WindowFrameBridge: NSViewRepresentable {
             }
 
             let center = NotificationCenter.default
-            observers.append(center.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak window] _ in
-                guard let frame = window?.frame else { return }
-                frameStorage.wrappedValue = NSStringFromRect(frame)
-            })
-            observers.append(center.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak window] _ in
-                guard let frame = window?.frame else { return }
-                frameStorage.wrappedValue = NSStringFromRect(frame)
-            })
+            // `queue: .main` guarantees main-thread delivery, so the main-actor
+            // reads of `frame` inside are safe to assume rather than hop for.
+            let record: @Sendable (Notification) -> Void = { [weak window] _ in
+                MainActor.assumeIsolated {
+                    guard let frame = window?.frame else { return }
+                    frameStorage.wrappedValue = NSStringFromRect(frame)
+                }
+            }
+            observers.append(center.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main, using: record))
+            observers.append(center.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main, using: record))
         }
 
-        deinit {
+        /// `isolated` so cleanup runs on the main actor: the observer tokens are
+        /// main-actor state, and a plain nonisolated `deinit` cannot touch them.
+        isolated deinit {
             removeObservers()
         }
 

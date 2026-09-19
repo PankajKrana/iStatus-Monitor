@@ -56,29 +56,6 @@ actor NetworkMonitor {
         pathMonitor.start(queue: pathQueue)
     }
 
-    func snapshots(every interval: Duration = .seconds(1)) -> AsyncStream<NetworkSnapshot> {
-        AsyncStream { continuation in
-            let task = Task {
-                while !Task.isCancelled {
-                    if let snapshot = latestSnapshot() {
-                        continuation.yield(snapshot)
-                    }
-
-                    do {
-                        try await Task.sleep(for: interval)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.finish()
-            }
-
-            continuation.onTermination = { _ in
-                task.cancel()
-            }
-        }
-    }
-
     func latestSnapshot() -> NetworkSnapshot? {
         ensurePathMonitoring()
         let now = Date()
@@ -259,7 +236,7 @@ actor NetworkMonitor {
 
         let result = getnameinfo(sockaddr, len, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST)
         guard result == 0 else { return nil }
-        return String(cString: host)
+        return String(nulTerminated: host)
     }
 
     private func isActiveNonLoopback(flags: UInt32, name: String) -> Bool {

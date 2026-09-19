@@ -217,13 +217,13 @@ actor NetworkInsightsMonitor {
     private func ipv4String(_ addr: inout in_addr) -> String {
         var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
         inet_ntop(AF_INET, &addr, &buffer, socklen_t(INET_ADDRSTRLEN))
-        return String(cString: buffer)
+        return String(nulTerminated: buffer)
     }
 
     private func ipv6String(_ addr: inout in6_addr) -> String {
         var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
         inet_ntop(AF_INET6, &addr, &buffer, socklen_t(INET6_ADDRSTRLEN))
-        return String(cString: buffer)
+        return String(nulTerminated: buffer)
     }
 
     private func tcpStateName(_ state: Int32) -> String {
@@ -259,7 +259,7 @@ actor NetworkInsightsMonitor {
     private func name(for pid: pid_t) -> String {
         var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         if proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count)) > 0 {
-            let last = (String(cString: pathBuffer) as NSString).lastPathComponent
+            let last = (String(nulTerminated: pathBuffer) as NSString).lastPathComponent
             if !last.isEmpty { return last }
         }
         return "pid \(pid)"
